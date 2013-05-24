@@ -24,11 +24,14 @@ To use, in addition to a working DPDK installation you need the rump
 kernel TCP/IP stack components.  The easiest way to obtain the rump
 kernel components is to use
 [buildrump.sh](https://github.com/anttikantee/buildrump.sh).  The
-procedure is follows.  Clone the buildrump.sh git repo.
-Run `./buildrump.sh checkout`.  Edit the parameters at the top of
-rumpcomp_user.c (e.g. interface port to be used) and both that and the
-Makefile in this repo to buildrump.sh `src/sys/rump/net/lib/libvirtif`.
-Run `./buildrump.sh`.
+procedure is follows.
+
+* clone the buildrump.sh git repo and run `./buildrump.sh checkout` there.
+* in the `src` directory of this repo, edit the parameters at the top of
+  rumpcomp_user.c, e.g. the interface port to be used.
+* copy both files in `src` to buildrump.sh's `src/sys/rump/net/lib/libvirtif`
+  (you should overwrite the files already there).
+* run `./buildrump.sh`
 
 As a simple test you can use the trivial program in the `examples`
 directory of buildrump.sh.  Add the necessary DPDK libraries to the
