@@ -1,7 +1,8 @@
 TCP/IP stack for DPDK
 =====================
 
-The hypercall driver in this repository attaches a rump kernel TCP/IP
+The hypercall driver in this repository attaches a
+[rump kernel](http://www.netbsd.org/docs/rump/) TCP/IP
 stack to a network interface card accessed via the Intel Data Plane
 Development Kit [DPDK](http://dpdk.org/).
 
