@@ -67,6 +67,8 @@ static const char *ealargs[] = {
 /* change to the init method of your NIC driver */
 #define PMD_INIT rte_wm_pmd_init
 
+/* Recieve packets in bursts of 16 per read */
+#define MAX_PKT_BURST 16
 
 /*
  * No (immediate) need to edit below this line
@@ -175,15 +177,24 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
 {
 	void *cookie = rumpuser_component_unschedule();
 	uint8_t *p = data;
+	static struct rte_mbuf* m_pkts[MAX_PKT_BURST];
+	static int pkts_in_buff = 0;
+	static int curr_index = 0;
 	struct rte_mbuf *m, *m0;
 	struct rte_pktmbuf *mp;
-	int nb_rx, rv;
+	int rv;
 
 	for (;;) {
-		nb_rx = rte_eth_rx_burst(IF_PORTID, 0, &m, 1);
-
-		if (nb_rx) {
-			assert(nb_rx == 1);
+		if (pkts_in_buff == 0)
+		{
+			pkts_in_buff = rte_eth_rx_burst(IF_PORTID, 0, m_pkts, MAX_PKT_BURST);
+                        curr_index = 0;
+		}
+		
+		if (pkts_in_buff > 0) {
+			m = m_pkts[curr_index];
+			curr_index++;
+			pkts_in_buff--;
 
 			mp = &m->pkt;
 			if (mp->pkt_len > dlen) {
