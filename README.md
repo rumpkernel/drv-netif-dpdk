@@ -16,6 +16,8 @@ with an Internet peer.
 Future plans include benchmarking, performance optimization, and
 improved configurability.
 
+A [wiki page](https://github.com/anttikantee/dpdk-rumptcpip/wiki/Optimizing-performance) documents some ideas for potential performance optimizations.
+
 
 Instructions
 ------------
