@@ -100,6 +100,14 @@ static struct rte_mempool *mbpool;
 
 struct virtif_user {
 	int only_one_interface_allowed;
+
+	/***************************************************************/
+	/* DPDK driver support receiving packets in bursts, we save    */
+	/* the current state of the buffered packets in this struct    */
+	/***************************************************************/
+	struct rte_mbuf* m_pkts[MAX_PKT_BURST];
+	int rcv_buffered_packets;
+	int current_index_in_rcv_buffer;
 };
 
 #define OUT(a) do { printf(a) ; goto out; } while (/*CONSTCOND*/0)
@@ -134,6 +142,7 @@ rumpcomp_virtif_create(int devnum, struct virtif_user **viup)
 {
 	struct rte_eth_conf portconf;
 	struct rte_eth_link link;
+	struct virtif_user *viu;
 	int rv = EINVAL; /* XXX: not very accurate ;) */
 
 	/* this is here only for simplicity */
@@ -159,10 +168,14 @@ rumpcomp_virtif_create(int devnum, struct virtif_user **viup)
 	}
 
 	rte_eth_promiscuous_enable(IF_PORTID);
+
+	viu = malloc(sizeof(*viu));
+	memset(viu,0,sizeof(*viu));
+
 	rv = 0;
 
  out:
-	*viup = NULL; /* not used by the driver in its current state */
+	*viup = viu; /* not used by the driver in its current state */
 	return rv;
 }
 
@@ -177,7 +190,6 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
 {
 	void *cookie = rumpuser_component_unschedule();
 	uint8_t *p = data;
-	static struct rte_mbuf* m_pkts[MAX_PKT_BURST];
 	static int pkts_in_buff = 0;
 	static int curr_index = 0;
 	struct rte_mbuf *m, *m0;
@@ -185,16 +197,16 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
 	int rv;
 
 	for (;;) {
-		if (pkts_in_buff == 0)
-		{
-			pkts_in_buff = rte_eth_rx_burst(IF_PORTID, 0, m_pkts, MAX_PKT_BURST);
-                        curr_index = 0;
+		if (viu->rcv_buffered_packets == 0){
+			viu->rcv_buffered_packets = rte_eth_rx_burst(IF_PORTID, 0, m_pkts,
+														MAX_PKT_BURST);
+			viu->current_index_in_rcv_buffer = 0;
 		}
 		
-		if (pkts_in_buff > 0) {
-			m = m_pkts[curr_index];
-			curr_index++;
-			pkts_in_buff--;
+		if (viu->rcv_buffered_packets > 0) {
+			m = viu->m_pkts[viu->current_index_in_rcv_buffer];
+			viu->current_index_in_rcv_buffer++
+			viu->rcv_buffered_packets--;
 
 			mp = &m->pkt;
 			if (mp->pkt_len > dlen) {
@@ -263,6 +275,7 @@ rumpcomp_virtif_dying(struct virtif_user *viu)
 void
 rumpcomp_virtif_destroy(struct virtif_user *viu)
 {
-
-	printf("you're a loonie!\n");
+	void *cookie = rumpuser_component_unschedule();
+	free(viu);
+	rumpuser_component_schedule(cookie);
 }
