@@ -175,7 +175,7 @@ rumpcomp_virtif_create(int devnum, struct virtif_user **viup)
 	rv = 0;
 
  out:
-	*viup = viu;
+	*viup = viu; /* not used by the driver in its current state */
 	return rv;
 }
 
