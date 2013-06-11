@@ -67,7 +67,7 @@ static const char *ealargs[] = {
 /* change to the init method of your NIC driver */
 #define PMD_INIT rte_wm_pmd_init
 
-/* Recieve packets in bursts of 16 per read */
+/* Receive packets in bursts of 16 per read */
 #define MAX_PKT_BURST 16
 
 /*
@@ -99,13 +99,8 @@ static const struct rte_eth_txconf txconf = {
 static struct rte_mempool *mbpool;
 
 struct virtif_user {
-	int only_one_interface_allowed;
-
-	/***************************************************************/
-	/* DPDK driver support receiving packets in bursts, we save    */
-	/* the current state of the buffered packets in this struct    */
-	/***************************************************************/
-	struct rte_mbuf* m_pkts[MAX_PKT_BURST];
+	/* burst receive context */
+	struct rte_mbuf *m_pkts[MAX_PKT_BURST];
 	int rcv_buffered_packets;
 	int current_index_in_rcv_buffer;
 };
@@ -170,12 +165,12 @@ rumpcomp_virtif_create(int devnum, struct virtif_user **viup)
 	rte_eth_promiscuous_enable(IF_PORTID);
 
 	viu = malloc(sizeof(*viu));
-	memset(viu,0,sizeof(*viu));
+	memset(viu, 0, sizeof(*viu));
+	*viup = viu;
 
 	rv = 0;
 
  out:
-	*viup = viu; /* not used by the driver in its current state */
 	return rv;
 }
 
@@ -197,9 +192,9 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
 	int rv;
 
 	for (;;) {
-		if (viu->rcv_buffered_packets == 0){
-			viu->rcv_buffered_packets = rte_eth_rx_burst(IF_PORTID, 0, m_pkts,
-														MAX_PKT_BURST);
+		if (viu->rcv_buffered_packets == 0) {
+			viu->rcv_buffered_packets = rte_eth_rx_burst(IF_PORTID,
+			    0, m_pkts, MAX_PKT_BURST);
 			viu->current_index_in_rcv_buffer = 0;
 		}
 		
