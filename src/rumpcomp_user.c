@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -264,13 +265,12 @@ void
 rumpcomp_virtif_dying(struct virtif_user *viu)
 {
 
-	printf("I'M INVINCIBLE!\n");
+	abort();
 }
 
 void
 rumpcomp_virtif_destroy(struct virtif_user *viu)
 {
-	void *cookie = rumpuser_component_unschedule();
-	free(viu);
-	rumpuser_component_schedule(cookie);
+
+	abort();
 }
