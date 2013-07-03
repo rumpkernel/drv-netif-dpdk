@@ -28,12 +28,12 @@ kernel components is to use
 [buildrump.sh](https://github.com/anttikantee/buildrump.sh).  The
 procedure is follows.
 
-* clone the buildrump.sh git repo and run `./buildrump.sh checkout` there.
-* in the `src` directory of this repo, edit the parameters at the top of
+* clone the buildrump.sh git repo and run `./buildrump.sh checkout fullbuild`
+* in `src/libdpdkif` of this repo, edit the parameters at the top of
   rumpcomp_user.c, e.g. the interface port to be used.
-* copy both files in `src` to buildrump.sh's `src/sys/rump/net/lib/libvirtif`
-  (you should overwrite the files already there).
-* run `./buildrump.sh`
+* still in `src/libdpdkif`, run `rumpmake dependall && rumpmake install`.
+  (note, you must have `rumpmake` in your path.  See the buildrump.sh
+  repo for more information on rumpmake)
 
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/anttikantee/buildrump.sh)
