@@ -66,7 +66,7 @@ static const char *ealargs[] = {
 #define IF_PORTID 0
 
 /* change to the init method of your NIC driver */
-#define PMD_INIT rte_wm_pmd_init
+#define PMD_INIT rte_igb_pmd_init
 
 /* Receive packets in bursts of 16 per read */
 #define MAX_PKT_BURST 16
@@ -122,7 +122,7 @@ globalinit(void)
 		OUT("mbuf pool\n");
 
 	if (PMD_INIT() < 0)
-		OUT("wm driver\n");
+		OUT("pmd init\n");
 	if (rte_eal_pci_probe() < 0)
 		OUT("PCI probe\n");
 	if (rte_eth_dev_count() == 0)
