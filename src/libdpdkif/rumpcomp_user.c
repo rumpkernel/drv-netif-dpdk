@@ -195,13 +195,13 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
 	for (;;) {
 		if (viu->rcv_buffered_packets == 0) {
 			viu->rcv_buffered_packets = rte_eth_rx_burst(IF_PORTID,
-			    0, m_pkts, MAX_PKT_BURST);
+			    0, viu->m_pkts, MAX_PKT_BURST);
 			viu->current_index_in_rcv_buffer = 0;
 		}
 		
 		if (viu->rcv_buffered_packets > 0) {
 			m = viu->m_pkts[viu->current_index_in_rcv_buffer];
-			viu->current_index_in_rcv_buffer++
+			viu->current_index_in_rcv_buffer++;
 			viu->rcv_buffered_packets--;
 
 			mp = &m->pkt;
