@@ -35,13 +35,6 @@ procedure is follows.
   (you should overwrite the files already there).
 * run `./buildrump.sh`
 
-As a simple test you can use the trivial program in the `examples`
-directory of buildrump.sh.  Add the necessary DPDK libraries to the
-Makefile before compiling: `-lrte_eal -lrte_malloc -lrte_mbuf -lethdev
--lrte_mempool -lrte_ring` and additionally the library for the poll
-mode driver you are using (e.g. `-lrte_pmd_wm`).  Compile and run the
-resulting binary.
-
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/anttikantee/buildrump.sh)
 or the [page on rump kernels](http://www.netbsd.org/docs/rump/).
