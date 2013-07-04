@@ -1,10 +1,23 @@
 TCP/IP stack for DPDK
 =====================
 
-The hypercall driver in this repository attaches a
+The hypercall driver in this repository attaches a userspace
 [rump kernel](http://www.netbsd.org/docs/rump/) TCP/IP
 stack to a network interface card accessed via the Intel Data Plane
 Development Kit [DPDK](http://dpdk.org/).
+
+in rough diagram form:
+
+	------------------------------
+	|    application process     |
+	||--------------------------||
+	|| rump kernel (TCP/IP etc.)||
+	||--------------------------||
+	|| dpdk-rumptcpip (dpdkif)  ||
+	||--------------------------||
+	|| DPDK                     ||
+	|----------------------------|
+	-----------------------------|
 
 
 Status
@@ -25,8 +38,11 @@ Instructions
 To use, in addition to a working DPDK installation you need the rump
 kernel TCP/IP stack components.  The easiest way to obtain the rump
 kernel components is to use
-[buildrump.sh](https://github.com/anttikantee/buildrump.sh).  The
-procedure is follows.
+[buildrump.sh](https://github.com/anttikantee/buildrump.sh).  It is
+recommended to pull and build the latest buildrump.sh after pulling a
+new version of this repository.
+
+The procedure is follows:
 
 * clone the buildrump.sh git repo and run `./buildrump.sh checkout fullbuild`
 * in `src/libdpdkif` of this repo, edit the parameters at the top of
