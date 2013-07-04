@@ -21,6 +21,8 @@
 #define IF_ADDR "10.0.0.2"
 #define ECHOSERVER_RX_PORT 1111
 
+#define IFNAME "dpdk0"
+
 int
 main()
 {
@@ -37,11 +39,14 @@ main()
 
 	rump_init();
 	rump_pub_lwproc_rfork(0);
-	rump_pub_netconfig_ifcreate("dpdk0");
+	if (rump_pub_netconfig_ifcreate(IFNAME) != 0)
+		errx(1, "failed to create " IFNAME);
 
-	rump_pub_netconfig_ipv4_ifaddr("dpdk0",IF_ADDR, "255.255.255.0");
+	if (rump_pub_netconfig_ipv4_ifaddr(IFNAME,
+	    IF_ADDR, "255.255.255.0") != 0)
+		errx(1, "failed to create " IFNAME);
 
-	//rump_pub_netconfig_dhcp_ipv4_oneshot("dpdk0");
+	//rump_pub_netconfig_dhcp_ipv4_oneshot(IFNAME);
 
 
 	s = rump_sys_socket(PF_INET, SOCK_DGRAM, 0);
