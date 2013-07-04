@@ -186,8 +186,6 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
 {
 	void *cookie = rumpuser_component_unschedule();
 	uint8_t *p = data;
-	static int pkts_in_buff = 0;
-	static int curr_index = 0;
 	struct rte_mbuf *m, *m0;
 	struct rte_pktmbuf *mp;
 	int rv;
