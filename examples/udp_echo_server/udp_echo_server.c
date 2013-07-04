@@ -37,11 +37,11 @@ main()
 
 	rump_init();
 	rump_pub_lwproc_rfork(0);
-	rump_pub_netconfig_ifcreate("virt0");
+	rump_pub_netconfig_ifcreate("dpdk0");
 
-	rump_pub_netconfig_ipv4_ifaddr("virt0",IF_ADDR, "255.255.255.0");
+	rump_pub_netconfig_ipv4_ifaddr("dpdk0",IF_ADDR, "255.255.255.0");
 
-	//rump_pub_netconfig_dhcp_ipv4_oneshot("virt0");
+	//rump_pub_netconfig_dhcp_ipv4_oneshot("dpdk0");
 
 
 	s = rump_sys_socket(PF_INET, SOCK_DGRAM, 0);
