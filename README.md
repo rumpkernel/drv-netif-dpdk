@@ -45,12 +45,13 @@ new version of this repository.
 
 The procedure is follows:
 
-* clone the buildrump.sh git repo and run `./buildrump.sh checkout fullbuild`
+* clone the buildrump.sh git repo run a build there
 * in `src/libdpdkif` of this repo, edit the parameters at the top of
   rumpcomp_user.c, e.g. the interface port to be used.
 * still in `src/libdpdkif`, run `rumpmake dependall && rumpmake install`.
-  (note, you must have `rumpmake` in your path.  See the buildrump.sh
-  repo for more information on rumpmake)
+  (note, you must have `rumpmake` in your path.  See
+  [here](https://github.com/anttikantee/buildrump.sh#tips-for-advanced-users)
+  for more information on rumpmake)
 
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/anttikantee/buildrump.sh)
