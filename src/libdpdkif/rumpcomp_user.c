@@ -50,6 +50,9 @@
 
 #include <rump/rumpuser_component.h>
 
+#include "if_virt.h"
+#include "rumpcomp_user.h"
+
 /*
  * Configurables.  Adjust these to be appropriate for your system.
  */
@@ -134,7 +137,7 @@ globalinit(void)
 }
 
 int
-rumpcomp_virtif_create(int devnum, struct virtif_user **viup)
+VIFHYPER_CREATE(int devnum, struct virtif_user **viup)
 {
 	struct rte_eth_conf portconf;
 	struct rte_eth_link link;
@@ -181,7 +184,7 @@ rumpcomp_virtif_create(int devnum, struct virtif_user **viup)
  * data copy.
  */
 int
-rumpcomp_virtif_recv(struct virtif_user *viu,
+VIFHYPER_RECV(struct virtif_user *viu,
 	void *data, size_t dlen, size_t *rcvp)
 {
 	void *cookie = rumpuser_component_unschedule();
@@ -235,7 +238,7 @@ rumpcomp_virtif_recv(struct virtif_user *viu,
  * data copy.
  */
 void
-rumpcomp_virtif_send(struct virtif_user *viu,
+VIFHYPER_SEND(struct virtif_user *viu,
 	struct iovec *iov, size_t iovlen)
 {
 	void *cookie = rumpuser_component_unschedule();
@@ -260,14 +263,14 @@ rumpcomp_virtif_send(struct virtif_user *viu,
 }
 
 void
-rumpcomp_virtif_dying(struct virtif_user *viu)
+VIFHYPER_DYING(struct virtif_user *viu)
 {
 
 	abort();
 }
 
 void
-rumpcomp_virtif_destroy(struct virtif_user *viu)
+VIFHYPER_DESTROY(struct virtif_user *viu)
 {
 
 	abort();
