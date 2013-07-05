@@ -115,20 +115,23 @@ globalinit(void)
 {
 	int rv;
 
-	if (rte_eal_init(sizeof(ealargs)/sizeof(ealargs[0]),
-	    /*UNCONST*/(void *)(uintptr_t)ealargs) < 0)
+	if ((rv = rte_eal_init(sizeof(ealargs)/sizeof(ealargs[0]),
+	    /*UNCONST*/(void *)(uintptr_t)ealargs)) < 0)
 		OUT("eal init\n");
 
 	if ((mbpool = rte_mempool_create("mbuf_pool", NMBUF, MBSIZE, MBALIGN,
 	    sizeof(struct rte_pktmbuf_pool_private),
-	    rte_pktmbuf_pool_init, NULL, rte_pktmbuf_init, NULL, 0, 0)) == NULL)
+	    rte_pktmbuf_pool_init, NULL,
+	    rte_pktmbuf_init, NULL, 0, 0)) == NULL) {
+		rv = -EINVAL;
 		OUT("mbuf pool\n");
+	}
 
-	if (PMD_INIT() < 0)
+	if ((rv = PMD_INIT()) < 0)
 		OUT("pmd init\n");
-	if (rte_eal_pci_probe() < 0)
+	if ((rv = rte_eal_pci_probe()) < 0)
 		OUT("PCI probe\n");
-	if (rte_eth_dev_count() == 0)
+	if ((rv = rte_eth_dev_count()) == 0)
 		OUT("no ports\n");
 	rv = 0;
 
@@ -146,20 +149,22 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 	int rv = EINVAL; /* XXX: not very accurate ;) */
 
 	/* this is here only for simplicity */
-	if (globalinit() != 0)
+	if ((rv = globalinit()) != 0)
 		goto out;
 
 	memset(&portconf, 0, sizeof(portconf));
-	if (rte_eth_dev_configure(IF_PORTID, NQUEUE, NQUEUE, &portconf) < 0)
+	if ((rv = rte_eth_dev_configure(IF_PORTID,
+	    NQUEUE, NQUEUE, &portconf)) < 0)
 		OUT("configure device\n");
 
-	if (rte_eth_rx_queue_setup(IF_PORTID, 0, NDESC, 0, &rxconf, mbpool) <0)
+	if ((rv = rte_eth_rx_queue_setup(IF_PORTID,
+	    0, NDESC, 0, &rxconf, mbpool)) <0)
 		OUT("rx queue setup\n");
 
-	if (rte_eth_tx_queue_setup(IF_PORTID, 0, NDESC, 0, &txconf) < 0)
+	if ((rv = rte_eth_tx_queue_setup(IF_PORTID, 0, NDESC, 0, &txconf)) < 0)
 		OUT("tx queue setup\n");
 
-	if (rte_eth_dev_start(IF_PORTID) < 0)
+	if ((rv = rte_eth_dev_start(IF_PORTID)) < 0)
 		OUT("device start\n");
 
 	rte_eth_link_get(IF_PORTID, &link);
@@ -178,7 +183,7 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 	rv = 0;
 
  out:
-	return rv;
+	return rumpuser_component_errtrans(-rv);
 }
 
 /*
@@ -194,7 +199,6 @@ VIFHYPER_RECV(struct virtif_user *viu,
 	uint8_t *p = data;
 	struct rte_mbuf *m, *m0;
 	struct rte_pktmbuf *mp;
-	int rv;
 
 	for (;;) {
 		if (viu->rcv_buffered_packets == 0) {
@@ -224,7 +228,6 @@ VIFHYPER_RECV(struct virtif_user *viu,
 				p += mp->data_len;
 			} while ((m = mp->next) != NULL);
 			rte_pktmbuf_free(m0);
-			rv = 0;
 			break;
 		} else {
 			usleep(10000); /* XXX: don't 100% busyloop */ 
@@ -232,7 +235,7 @@ VIFHYPER_RECV(struct virtif_user *viu,
 	}
 
 	rumpuser_component_schedule(cookie);
-	return rv;
+	return 0; /* XXX */
 }
 
 /*
