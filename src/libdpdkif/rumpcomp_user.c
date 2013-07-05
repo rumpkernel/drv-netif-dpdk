@@ -69,7 +69,9 @@ static const char *ealargs[] = {
 #define IF_PORTID 0
 
 /* change to the init method of your NIC driver */
+#ifndef PMD_INIT
 #define PMD_INIT rte_igb_pmd_init
+#endif
 
 /* Receive packets in bursts of 16 per read */
 #define MAX_PKT_BURST 16
