@@ -59,7 +59,7 @@
 
 /* change blacklist parameters (-b) if necessary */
 static const char *ealargs[] = {
-	"if_virt",
+	"if_dpdk",
 	"-b 00:00:03.0",
 	"-c 1",
 	"-n 1",
