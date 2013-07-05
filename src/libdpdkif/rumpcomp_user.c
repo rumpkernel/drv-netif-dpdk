@@ -24,9 +24,8 @@
  */
 
 /*
- * This is a very simple hypercall layer for the rump kernel if_virt
- * to plug into DPDK.  It does not attempt to be fast.  It attempts
- * to 1) work 2) be quick to implement.
+ * This is a very simple hypercall layer for the rump kernel
+ * to plug into DPDK.  Current status: no known bugs.
  */
 
 #include <sys/types.h>
