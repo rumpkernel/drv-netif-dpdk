@@ -137,10 +137,11 @@ globalinit(void)
 }
 
 int
-VIFHYPER_CREATE(int devnum, struct virtif_user **viup)
+VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 {
 	struct rte_eth_conf portconf;
 	struct rte_eth_link link;
+	struct ether_addr ea;
 	struct virtif_user *viu;
 	int rv = EINVAL; /* XXX: not very accurate ;) */
 
@@ -167,6 +168,8 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup)
 	}
 
 	rte_eth_promiscuous_enable(IF_PORTID);
+	rte_eth_macaddr_get(IF_PORTID, &ea);
+	memcpy(enaddr, ea.addr_bytes, ETHER_ADDR_LEN);
 
 	viu = malloc(sizeof(*viu));
 	memset(viu, 0, sizeof(*viu));

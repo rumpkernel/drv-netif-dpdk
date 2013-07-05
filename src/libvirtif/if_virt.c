@@ -91,16 +91,17 @@ virtif_clone(struct if_clone *ifc, int num)
 	struct virtif_user *viu;
 	struct ifnet *ifp;
 	uint8_t enaddr[ETHER_ADDR_LEN] = { 0xb2, 0x0a, 0x00, 0x0b, 0x0e, 0x01 };
+	char enaddrstr[3*ETHER_ADDR_LEN];
 	int error = 0;
 
 	if (num >= 0x100)
 		return E2BIG;
 
-	if ((error = VIFHYPER_CREATE(num, &viu)) != 0)
-		return error;
-
 	enaddr[2] = cprng_fast32() & 0xff;
 	enaddr[5] = num;
+
+	if ((error = VIFHYPER_CREATE(num, &viu, enaddr)) != 0)
+		return error;
 
 	sc = kmem_zalloc(sizeof(*sc), KM_SLEEP);
 	sc->sc_dying = false;
@@ -134,6 +135,9 @@ virtif_clone(struct if_clone *ifc, int num)
 
 	if_attach(ifp);
 	ether_ifattach(ifp, enaddr);
+
+	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
+	aprint_normal_ifnet(ifp, "Ethernet address %s\n", enaddrstr);
 
  out:
 	if (error) {

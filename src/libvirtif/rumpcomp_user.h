@@ -27,7 +27,7 @@
 
 struct virtif_user;
 
-int 	VIFHYPER_CREATE(int, struct virtif_user **);
+int 	VIFHYPER_CREATE(int, struct virtif_user **, uint8_t *);
 void	VIFHYPER_DYING(struct virtif_user *);
 void	VIFHYPER_DESTROY(struct virtif_user *);
 
