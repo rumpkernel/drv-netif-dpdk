@@ -193,15 +193,50 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
  * TCP/IP stack.  TODO: share TCP/IP stack mbufs with DPDK mbufs to avoid
  * data copy.
  */
+static void
+deliverframe(struct virtif_user *viu, void *data, size_t dlen, size_t *rcvp)
+{
+	struct rte_mbuf *m, *m0;
+	struct rte_pktmbuf *mp;
+	uint8_t *p = data;
+
+	assert(viu->rcv_buffered_packets > 0);
+	m = viu->m_pkts[viu->current_index_in_rcv_buffer];
+	viu->current_index_in_rcv_buffer++;
+	viu->rcv_buffered_packets--;
+
+	mp = &m->pkt;
+	if (mp->pkt_len > dlen) {
+		/* for now, just drop packets we can't handle */
+		printf("warning: virtif recv packet too big "
+		    "%d vs. %zu\n", mp->pkt_len, dlen);
+		rte_pktmbuf_free(m);
+		return;
+	}
+	*rcvp = mp->pkt_len;
+	m0 = m;
+	do {
+		mp = &m->pkt;
+		memcpy(p, mp->data, mp->data_len);
+		p += mp->data_len;
+	} while ((m = mp->next) != NULL);
+	rte_pktmbuf_free(m0);
+}
+
 int
 VIFHYPER_RECV(struct virtif_user *viu,
 	void *data, size_t dlen, size_t *rcvp)
 {
-	void *cookie = rumpuser_component_unschedule();
-	uint8_t *p = data;
-	struct rte_mbuf *m, *m0;
-	struct rte_pktmbuf *mp;
+	void *cookie;
 
+	/* fastpath, we have cached frames */
+	if (viu->rcv_buffered_packets > 0) {
+		deliverframe(viu, data, dlen, rcvp);
+		return 0;
+	}
+		
+	/* none cached.  ok, try to get some */
+	cookie = rumpuser_component_unschedule();
 	for (;;) {
 		if (viu->rcv_buffered_packets == 0) {
 			viu->rcv_buffered_packets = rte_eth_rx_burst(IF_PORTID,
@@ -210,26 +245,7 @@ VIFHYPER_RECV(struct virtif_user *viu,
 		}
 		
 		if (viu->rcv_buffered_packets > 0) {
-			m = viu->m_pkts[viu->current_index_in_rcv_buffer];
-			viu->current_index_in_rcv_buffer++;
-			viu->rcv_buffered_packets--;
-
-			mp = &m->pkt;
-			if (mp->pkt_len > dlen) {
-				/* for now, just drop packets we can't handle */
-				printf("warning: virtif recv packet too big "
-				    "%d vs. %zu\n", mp->pkt_len, dlen);
-				rte_pktmbuf_free(m);
-				continue;
-			}
-			*rcvp = mp->pkt_len;
-			m0 = m;
-			do {
-				mp = &m->pkt;
-				memcpy(p, mp->data, mp->data_len);
-				p += mp->data_len;
-			} while ((m = mp->next) != NULL);
-			rte_pktmbuf_free(m0);
+			deliverframe(viu, data, dlen, rcvp);
 			break;
 		} else {
 			usleep(10000); /* XXX: don't 100% busyloop */ 
