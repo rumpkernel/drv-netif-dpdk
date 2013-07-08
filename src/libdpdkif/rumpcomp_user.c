@@ -105,9 +105,9 @@ static struct rte_mempool *mbpool;
 
 struct virtif_user {
 	/* burst receive context */
-	struct rte_mbuf *m_pkts[MAX_PKT_BURST];
-	int rcv_buffered_packets;
-	int current_index_in_rcv_buffer;
+	struct rte_mbuf *viu_m_pkts[MAX_PKT_BURST];
+	int viu_nbufpkts;
+	int viu_bufidx;
 };
 
 #define OUT(a) do { printf(a) ; goto out; } while (/*CONSTCOND*/0)
@@ -199,15 +199,15 @@ deliverframe(struct virtif_user *viu, void *data, size_t dlen, size_t *rcvp)
 	struct rte_pktmbuf *mp;
 	uint8_t *p = data;
 
-	assert(viu->rcv_buffered_packets > 0);
-	m = viu->m_pkts[viu->current_index_in_rcv_buffer];
-	viu->current_index_in_rcv_buffer++;
-	viu->rcv_buffered_packets--;
+	assert(viu->viu_nbufpkts > 0);
+	m = viu->viu_m_pkts[viu->viu_bufidx];
+	viu->viu_bufidx++;
+	viu->viu_nbufpkts--;
 
 	mp = &m->pkt;
 	if (mp->pkt_len > dlen) {
 		/* for now, just drop packets we can't handle */
-		printf("warning: virtif recv packet too big "
+		printf("warning: dpdkif recv packet too big "
 		    "%d vs. %zu\n", mp->pkt_len, dlen);
 		rte_pktmbuf_free(m);
 		return;
@@ -229,7 +229,7 @@ VIFHYPER_RECV(struct virtif_user *viu,
 	void *cookie;
 
 	/* fastpath, we have cached frames */
-	if (viu->rcv_buffered_packets > 0) {
+	if (viu->viu_nbufpkts > 0) {
 		deliverframe(viu, data, dlen, rcvp);
 		return 0;
 	}
@@ -237,13 +237,13 @@ VIFHYPER_RECV(struct virtif_user *viu,
 	/* none cached.  ok, try to get some */
 	cookie = rumpuser_component_unschedule();
 	for (;;) {
-		if (viu->rcv_buffered_packets == 0) {
-			viu->rcv_buffered_packets = rte_eth_rx_burst(IF_PORTID,
-			    0, viu->m_pkts, MAX_PKT_BURST);
-			viu->current_index_in_rcv_buffer = 0;
+		if (viu->viu_nbufpkts == 0) {
+			viu->viu_nbufpkts = rte_eth_rx_burst(IF_PORTID,
+			    0, viu->viu_m_pkts, MAX_PKT_BURST);
+			viu->viu_bufidx = 0;
 		}
 		
-		if (viu->rcv_buffered_packets > 0) {
+		if (viu->viu_nbufpkts > 0) {
 			deliverframe(viu, data, dlen, rcvp);
 			break;
 		} else {
