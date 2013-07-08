@@ -214,29 +214,27 @@ static void
 deliverframe(struct virtif_user *viu, void *data, size_t dlen, size_t *rcvp)
 {
 	struct rte_mbuf *m, *m0;
-	struct rte_pktmbuf *mp;
 	uint8_t *p = data;
 
 	assert(viu->viu_nbufpkts > 0);
-	m = viu->viu_m_pkts[viu->viu_bufidx];
+	m0 = viu->viu_m_pkts[viu->viu_bufidx];
 	viu->viu_bufidx++;
 	viu->viu_nbufpkts--;
 
-	mp = &m->pkt;
-	if (mp->pkt_len > dlen) {
+	if (rte_pktmbuf_pkt_len(m0) > dlen) {
 		/* for now, just drop packets we can't handle */
 		ifwarn(viu, "recv packet too big %d vs. %zu\n",
-		    mp->pkt_len, dlen);
-		rte_pktmbuf_free(m);
-		return;
+		    rte_pktmbuf_pkt_len(m0), dlen);
+		goto out;
 	}
-	*rcvp = mp->pkt_len;
-	m0 = m;
-	do {
-		mp = &m->pkt;
-		memcpy(p, mp->data, mp->data_len);
-		p += mp->data_len;
-	} while ((m = mp->next) != NULL);
+
+	for (m = m0; m; m = m->pkt.next) {
+		memcpy(p, rte_pktmbuf_mtod(m, void *), rte_pktmbuf_data_len(m));
+		p += rte_pktmbuf_data_len(m);
+	}
+	*rcvp = rte_pktmbuf_pkt_len(m0);
+
+ out:
 	rte_pktmbuf_free(m0);
 }
 
