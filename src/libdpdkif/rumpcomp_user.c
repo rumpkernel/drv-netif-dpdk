@@ -104,15 +104,29 @@ static const struct rte_eth_txconf txconf = {
 static struct rte_mempool *mbpool;
 
 struct virtif_user {
+	int viu_devnum;
+
 	/* burst receive context */
 	struct rte_mbuf *viu_m_pkts[MAX_PKT_BURST];
 	int viu_nbufpkts;
 	int viu_bufidx;
 };
 
-#define OUT(a) do { printf(a) ; goto out; } while (/*CONSTCOND*/0)
+static void
+ifwarn(struct virtif_user *viu, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	fprintf(stderr, "warning dpdkif%d:", viu->viu_devnum);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	va_end(ap);
+}
+
+#define OUT(a) do { ifwarn(viu, a) ; goto out; } while (/*CONSTCOND*/0)
 static int
-globalinit(void)
+globalinit(struct virtif_user *viu)
 {
 	int rv;
 
@@ -149,8 +163,12 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 	struct virtif_user *viu;
 	int rv = EINVAL; /* XXX: not very accurate ;) */
 
+	viu = malloc(sizeof(*viu));
+	memset(viu, 0, sizeof(*viu));
+	viu->viu_devnum = devnum;
+
 	/* this is here only for simplicity */
-	if ((rv = globalinit()) != 0)
+	if ((rv = globalinit(viu)) != 0)
 		goto out;
 
 	memset(&portconf, 0, sizeof(portconf));
@@ -170,20 +188,20 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 
 	rte_eth_link_get(IF_PORTID, &link);
 	if (!link.link_status) {
-		printf("warning: virt link down\n");
+		ifwarn(viu, "link down");
 	}
 
 	rte_eth_promiscuous_enable(IF_PORTID);
 	rte_eth_macaddr_get(IF_PORTID, &ea);
 	memcpy(enaddr, ea.addr_bytes, ETHER_ADDR_LEN);
 
-	viu = malloc(sizeof(*viu));
-	memset(viu, 0, sizeof(*viu));
-	*viup = viu;
-
 	rv = 0;
 
  out:
+	if (rv != 0)
+		free(viu);
+	else
+		*viup = viu;
 	return rumpuser_component_errtrans(-rv);
 }
 
@@ -207,8 +225,8 @@ deliverframe(struct virtif_user *viu, void *data, size_t dlen, size_t *rcvp)
 	mp = &m->pkt;
 	if (mp->pkt_len > dlen) {
 		/* for now, just drop packets we can't handle */
-		printf("warning: dpdkif recv packet too big "
-		    "%d vs. %zu\n", mp->pkt_len, dlen);
+		ifwarn(viu, "recv packet too big %d vs. %zu\n",
+		    mp->pkt_len, dlen);
 		rte_pktmbuf_free(m);
 		return;
 	}
