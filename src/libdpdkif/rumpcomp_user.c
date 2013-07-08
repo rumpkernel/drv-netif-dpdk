@@ -118,7 +118,7 @@ ifwarn(struct virtif_user *viu, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fprintf(stderr, "warning dpdkif%d:", viu->viu_devnum);
+	fprintf(stderr, "warning dpdkif%d: ", viu->viu_devnum);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
