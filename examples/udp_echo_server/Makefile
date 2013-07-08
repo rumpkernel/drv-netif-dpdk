@@ -1,6 +1,6 @@
 # If you're using anything but the default, change this to
 # point to your installation destination directory.
-RD=../rump
+RD=../../../buildrump.sh/rump
 
 all: udp_echo_server
 
