@@ -77,7 +77,6 @@ struct virtif_sc {
 };
 
 static void virtif_receiver(void *);
-static void virtif_sender(void *);
 static int  virtif_clone(struct if_clone *, int);
 static int  virtif_unclone(struct ifnet *);
 
@@ -116,11 +115,6 @@ virtif_clone(struct if_clone *ifc, int num)
 	if (rump_threads) {
 		if ((error = kthread_create(PRI_NONE, KTHREAD_MUSTJOIN, NULL,
 		    virtif_receiver, ifp, &sc->sc_l_rcv, VIF_NAME "ifr")) != 0)
-			goto out;
-
-		if ((error = kthread_create(PRI_NONE,
-		    KTHREAD_MUSTJOIN | KTHREAD_MPSAFE, NULL,
-		    virtif_sender, ifp, &sc->sc_l_snd, VIF_NAME "ifs")) != 0)
 			goto out;
 	} else {
 		printf("WARNING: threads not enabled, receive NOT working\n");
@@ -215,15 +209,44 @@ virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 	return rv;
 }
 
+/*
+ * Output packets in-context until outgoing queue is empty.
+ * Assume that VIFHYPER_SEND() is fast enough to not make it
+ * necessary to drop kernel_lock.
+ */
+#define LB_SH 32
 static void
 virtif_start(struct ifnet *ifp)
 {
 	struct virtif_sc *sc = ifp->if_softc;
+	struct mbuf *m, *m0;
+	struct iovec io[LB_SH];
+	int i;
 
-	mutex_enter(&sc->sc_mtx);
 	ifp->if_flags |= IFF_OACTIVE;
-	cv_broadcast(&sc->sc_cv);
-	mutex_exit(&sc->sc_mtx);
+
+	while (!sc->sc_dying) {
+		IF_DEQUEUE(&ifp->if_snd, m0);
+		if (!m0) {
+			break;
+		}
+
+		m = m0;
+		for (i = 0; i < LB_SH && m; i++) {
+			io[i].iov_base = mtod(m, void *);
+			io[i].iov_len = m->m_len;
+			m = m->m_next;
+		}
+		if (i == LB_SH)
+			panic("lazy bum");
+		bpf_mtap(ifp, m0);
+
+		VIFHYPER_SEND(sc->sc_viu, io, i);
+
+		m_freem(m0);
+	}
+
+	ifp->if_flags &= ~IFF_OACTIVE;
 }
 
 static void
@@ -284,54 +307,6 @@ virtif_receiver(void *arg)
 		bpf_mtap(ifp, m);
 		ether_input(ifp, m);
 	}
-
-	kthread_exit(0);
-}
-
-/* lazy bum stetson-harrison magic value */
-#define LB_SH 32
-static void
-virtif_sender(void *arg)
-{
-	struct ifnet *ifp = arg;
-	struct virtif_sc *sc = ifp->if_softc;
-	struct mbuf *m, *m0;
-	struct iovec io[LB_SH];
-	int i;
-
-	mutex_enter(&sc->sc_mtx);
-	KERNEL_LOCK(1, NULL);
-	while (!sc->sc_dying) {
-		if (!(ifp->if_flags & IFF_RUNNING)) {
-			cv_wait(&sc->sc_cv, &sc->sc_mtx);
-			continue;
-		}
-		IF_DEQUEUE(&ifp->if_snd, m0);
-		if (!m0) {
-			ifp->if_flags &= ~IFF_OACTIVE;
-			cv_wait(&sc->sc_cv, &sc->sc_mtx);
-			continue;
-		}
-		mutex_exit(&sc->sc_mtx);
-
-		m = m0;
-		for (i = 0; i < LB_SH && m; i++) {
-			io[i].iov_base = mtod(m, void *);
-			io[i].iov_len = m->m_len;
-			m = m->m_next;
-		}
-		if (i == LB_SH)
-			panic("lazy bum");
-		bpf_mtap(ifp, m0);
-
-		VIFHYPER_SEND(sc->sc_viu, io, i);
-
-		m_freem(m0);
-		mutex_enter(&sc->sc_mtx);
-	}
-	KERNEL_UNLOCK_LAST(curlwp);
-
-	mutex_exit(&sc->sc_mtx);
 
 	kthread_exit(0);
 }
