@@ -282,7 +282,6 @@ void
 VIFHYPER_SEND(struct virtif_user *viu,
 	struct iovec *iov, size_t iovlen)
 {
-	void *cookie = rumpuser_component_unschedule();
 	struct rte_mbuf *m;
 	void *dptr;
 	unsigned i;
@@ -293,14 +292,11 @@ VIFHYPER_SEND(struct virtif_user *viu,
 		if (dptr == NULL) {
 			/* log error somehow? */
 			rte_pktmbuf_free(m);
-			goto out;
+			break;
 		}
 		memcpy(dptr, iov[i].iov_base, iov[i].iov_len);
 	}
 	rte_eth_tx_burst(IF_PORTID, 0, &m, 1);
-
- out:
-	rumpuser_component_schedule(cookie);
 }
 
 void
