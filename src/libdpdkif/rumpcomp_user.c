@@ -32,6 +32,7 @@
 #include <sys/uio.h>
 
 #include <assert.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -105,6 +106,8 @@ static struct rte_mempool *mbpool;
 
 struct virtif_user {
 	int viu_devnum;
+	struct virtif_sc *viu_virtifsc;
+	pthread_t viu_rcvpt;
 
 	/* burst receive context */
 	struct rte_mbuf *viu_m_pkts[MAX_PKT_BURST];
@@ -154,8 +157,88 @@ globalinit(struct virtif_user *viu)
  	return rv;
 }
 
+/*
+ * Get mbuf off of interface, push it up into the TCP/IP stack.
+ * TODO: share TCP/IP stack mbufs with DPDK mbufs to avoid
+ * data copy (in rump_virtif_pktdeliver()).
+ */
+#define STACK_IOV 16
+static void
+deliverframe(struct virtif_user *viu)
+{
+	struct rte_mbuf *m, *m0;
+	struct iovec iov[STACK_IOV];
+	struct iovec *iovp, *iovp0;
+
+	assert(viu->viu_nbufpkts > 0);
+	m0 = viu->viu_m_pkts[viu->viu_bufidx];
+	viu->viu_bufidx++;
+	viu->viu_nbufpkts--;
+
+	if (m0->pkt.nb_segs > STACK_IOV) {
+		iovp = malloc(sizeof(*iovp) * m0->pkt.nb_segs);
+		if (iovp == NULL)
+			return; /* drop */
+	} else {
+		iovp = iov;
+	}
+	iovp0 = iovp;
+
+	for (m = m0; m; m = m->pkt.next, iovp++) {
+		iovp->iov_base = rte_pktmbuf_mtod(m, void *);
+		iovp->iov_len = rte_pktmbuf_data_len(m);
+	}
+	rump_virtif_pktdeliver(viu->viu_virtifsc, iovp0, iovp-iovp0);
+
+	rte_pktmbuf_free(m0);
+	if (iovp0 != iov)
+		free(iovp0);
+}
+
+static void *
+receiver(void *arg)
+{
+	struct virtif_user *viu = arg;
+
+	/* step 1: this newly created host thread needs a rump kernel context */
+	rumpuser_component_kthread();
+
+	/* step 2: deliver packets until interface is decommissioned */
+	for (;;) {
+		/* we have cached frames. schedule + deliver */
+		if (viu->viu_nbufpkts > 0) {
+			rumpuser_component_schedule(NULL);
+			while (viu->viu_nbufpkts > 0) {
+				deliverframe(viu);
+			}
+			rumpuser_component_unschedule();
+		}
+		
+		/* none cached.  ok, try to get some */
+		if (viu->viu_nbufpkts == 0) {
+			viu->viu_nbufpkts = rte_eth_rx_burst(IF_PORTID,
+			    0, viu->viu_m_pkts, MAX_PKT_BURST);
+			viu->viu_bufidx = 0;
+		}
+			
+		if (viu->viu_nbufpkts == 0) {
+			/*
+			 * For now, don't ultrabusyloop.
+			 * I don't have an overabundance of
+			 * spare cores in my vm.
+			 */
+			usleep(10000);
+		}
+	}
+
+	assert(0);
+	return NULL;
+}
+
+
 int
-VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
+VIFHYPER_CREATE(int devnum, struct virtif_sc *vif_sc, uint8_t *enaddr,
+	struct virtif_user **viup)
 {
 	struct rte_eth_conf portconf;
 	struct rte_eth_link link;
@@ -166,6 +249,7 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 	viu = malloc(sizeof(*viu));
 	memset(viu, 0, sizeof(*viu));
 	viu->viu_devnum = devnum;
+	viu->viu_virtifsc = vif_sc;
 
 	/* this is here only for simplicity */
 	if ((rv = globalinit(viu)) != 0)
@@ -195,80 +279,15 @@ VIFHYPER_CREATE(int devnum, struct virtif_user **viup, uint8_t *enaddr)
 	rte_eth_macaddr_get(IF_PORTID, &ea);
 	memcpy(enaddr, ea.addr_bytes, ETHER_ADDR_LEN);
 
-	rv = 0;
+	rv = pthread_create(&viu->viu_rcvpt, NULL, receiver, viu);
 
  out:
+	/* XXX: well this isn't much of an unrolling ... */
 	if (rv != 0)
 		free(viu);
 	else
 		*viup = viu;
 	return rumpuser_component_errtrans(-rv);
-}
-
-/*
- * Get mbuf off of interface, copy it into memory provided by the
- * TCP/IP stack.  TODO: share TCP/IP stack mbufs with DPDK mbufs to avoid
- * data copy.
- */
-static void
-deliverframe(struct virtif_user *viu, void *data, size_t dlen, size_t *rcvp)
-{
-	struct rte_mbuf *m, *m0;
-	uint8_t *p = data;
-
-	assert(viu->viu_nbufpkts > 0);
-	m0 = viu->viu_m_pkts[viu->viu_bufidx];
-	viu->viu_bufidx++;
-	viu->viu_nbufpkts--;
-
-	if (rte_pktmbuf_pkt_len(m0) > dlen) {
-		/* for now, just drop packets we can't handle */
-		ifwarn(viu, "recv packet too big %d vs. %zu\n",
-		    rte_pktmbuf_pkt_len(m0), dlen);
-		goto out;
-	}
-
-	for (m = m0; m; m = m->pkt.next) {
-		memcpy(p, rte_pktmbuf_mtod(m, void *), rte_pktmbuf_data_len(m));
-		p += rte_pktmbuf_data_len(m);
-	}
-	*rcvp = rte_pktmbuf_pkt_len(m0);
-
- out:
-	rte_pktmbuf_free(m0);
-}
-
-int
-VIFHYPER_RECV(struct virtif_user *viu,
-	void *data, size_t dlen, size_t *rcvp)
-{
-	void *cookie;
-
-	/* fastpath, we have cached frames */
-	if (viu->viu_nbufpkts > 0) {
-		deliverframe(viu, data, dlen, rcvp);
-		return 0;
-	}
-		
-	/* none cached.  ok, try to get some */
-	cookie = rumpuser_component_unschedule();
-	for (;;) {
-		if (viu->viu_nbufpkts == 0) {
-			viu->viu_nbufpkts = rte_eth_rx_burst(IF_PORTID,
-			    0, viu->viu_m_pkts, MAX_PKT_BURST);
-			viu->viu_bufidx = 0;
-		}
-		
-		if (viu->viu_nbufpkts > 0) {
-			deliverframe(viu, data, dlen, rcvp);
-			break;
-		} else {
-			usleep(10000); /* XXX: don't 100% busyloop */ 
-		}
-	}
-
-	rumpuser_component_schedule(cookie);
-	return 0; /* XXX */
 }
 
 /*

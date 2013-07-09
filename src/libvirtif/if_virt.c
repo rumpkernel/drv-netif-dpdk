@@ -70,13 +70,8 @@ static void	virtif_stop(struct ifnet *, int);
 struct virtif_sc {
 	struct ethercom sc_ec;
 	struct virtif_user *sc_viu;
-	bool sc_dying;
-	struct lwp *sc_l_snd, *sc_l_rcv;
-	kmutex_t sc_mtx;
-	kcondvar_t sc_cv;
 };
 
-static void virtif_receiver(void *);
 static int  virtif_clone(struct if_clone *, int);
 static int  virtif_unclone(struct ifnet *);
 
@@ -99,26 +94,17 @@ virtif_clone(struct if_clone *ifc, int num)
 	enaddr[2] = cprng_fast32() & 0xff;
 	enaddr[5] = num;
 
-	if ((error = VIFHYPER_CREATE(num, &viu, enaddr)) != 0)
-		return error;
-
 	sc = kmem_zalloc(sizeof(*sc), KM_SLEEP);
-	sc->sc_dying = false;
+
+	if ((error = VIFHYPER_CREATE(num, sc, enaddr, &viu)) != 0) {
+		kmem_free(sc, sizeof(*sc));
+		return error;
+	}
 	sc->sc_viu = viu;
 
-	mutex_init(&sc->sc_mtx, MUTEX_DEFAULT, IPL_NONE);
-	cv_init(&sc->sc_cv, VIF_NAME "snd");
 	ifp = &sc->sc_ec.ec_if;
 	sprintf(ifp->if_xname, "%s%d", VIF_NAME, num);
 	ifp->if_softc = sc;
-
-	if (rump_threads) {
-		if ((error = kthread_create(PRI_NONE, KTHREAD_MUSTJOIN, NULL,
-		    virtif_receiver, ifp, &sc->sc_l_rcv, VIF_NAME "ifr")) != 0)
-			goto out;
-	} else {
-		printf("WARNING: threads not enabled, receive NOT working\n");
-	}
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = virtif_init;
@@ -133,7 +119,6 @@ virtif_clone(struct if_clone *ifc, int num)
 	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
 	aprint_normal_ifnet(ifp, "Ethernet address %s\n", enaddrstr);
 
- out:
 	if (error) {
 		virtif_unclone(ifp);
 	}
@@ -146,33 +131,13 @@ virtif_unclone(struct ifnet *ifp)
 {
 	struct virtif_sc *sc = ifp->if_softc;
 
-	mutex_enter(&sc->sc_mtx);
-	if (sc->sc_dying) {
-		mutex_exit(&sc->sc_mtx);
-		return EINPROGRESS;
-	}
-	sc->sc_dying = true;
-	cv_broadcast(&sc->sc_cv);
-	mutex_exit(&sc->sc_mtx);
-
 	VIFHYPER_DYING(sc->sc_viu);
 
 	virtif_stop(ifp, 1);
 	if_down(ifp);
 
-	if (sc->sc_l_snd) {
-		kthread_join(sc->sc_l_snd);
-		sc->sc_l_snd = NULL;
-	}
-	if (sc->sc_l_rcv) {
-		kthread_join(sc->sc_l_rcv);
-		sc->sc_l_rcv = NULL;
-	}
-
 	VIFHYPER_DESTROY(sc->sc_viu);
 
-	mutex_destroy(&sc->sc_mtx);
-	cv_destroy(&sc->sc_cv);
 	kmem_free(sc, sizeof(*sc));
 
 	ether_ifdetach(ifp);
@@ -184,14 +149,8 @@ virtif_unclone(struct ifnet *ifp)
 static int
 virtif_init(struct ifnet *ifp)
 {
-	struct virtif_sc *sc = ifp->if_softc;
 
 	ifp->if_flags |= IFF_RUNNING;
-
-	mutex_enter(&sc->sc_mtx);
-	cv_broadcast(&sc->sc_cv);
-	mutex_exit(&sc->sc_mtx);
-	
 	return 0;
 }
 
@@ -225,7 +184,7 @@ virtif_start(struct ifnet *ifp)
 
 	ifp->if_flags |= IFF_OACTIVE;
 
-	while (!sc->sc_dying) {
+	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m0);
 		if (!m0) {
 			break;
@@ -252,61 +211,38 @@ virtif_start(struct ifnet *ifp)
 static void
 virtif_stop(struct ifnet *ifp, int disable)
 {
-	struct virtif_sc *sc = ifp->if_softc;
 
 	ifp->if_flags &= ~IFF_RUNNING;
-
-	mutex_enter(&sc->sc_mtx);
-	cv_broadcast(&sc->sc_cv);
-	mutex_exit(&sc->sc_mtx);
 }
 
-#define POLLTIMO_MS 1
-static void
-virtif_receiver(void *arg)
+void
+rump_virtif_pktdeliver(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 {
-	struct ifnet *ifp = arg;
-	struct virtif_sc *sc = ifp->if_softc;
+	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	struct mbuf *m;
-	size_t plen = ETHER_MAX_LEN_JUMBO+1;
-	size_t n;
-	int error;
+	size_t i;
+	int off, olen;
 
-	for (;;) {
-		m = m_gethdr(M_WAIT, MT_DATA);
-		MEXTMALLOC(m, plen, M_WAIT);
+	if ((ifp->if_flags & IFF_RUNNING) == 0)
+		return;
 
- again:
-		if (sc->sc_dying) {
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m == NULL)
+		return; /* drop packet */
+	m->m_len = m->m_pkthdr.len = 0;
+
+	for (i = 0, off = 0; i < iovlen; i++) {
+		olen = m->m_pkthdr.len;
+		m_copyback(m, off, iov[i].iov_len, iov[i].iov_base);
+		off += iov[i].iov_len;
+		if (olen + off != m->m_pkthdr.len) {
+			aprint_verbose_ifnet(ifp, "m_copyback failed\n");
 			m_freem(m);
-			break;
+			return;
 		}
-		
-		error = VIFHYPER_RECV(sc->sc_viu,
-		    mtod(m, void *), plen, &n);
-		if (error) {
-			printf("%s: read hypercall failed %d. host if down?\n",
-			    ifp->if_xname, error);
-			mutex_enter(&sc->sc_mtx);
-			/* could check if need go, done soon anyway */
-			cv_timedwait(&sc->sc_cv, &sc->sc_mtx, hz);
-			mutex_exit(&sc->sc_mtx);
-			goto again;
-		}
-
-		/* tap sometimes returns EOF.  don't sweat it and plow on */
-		if (__predict_false(n == 0))
-			goto again;
-
-		/* discard if we're not up */
-		if ((ifp->if_flags & IFF_RUNNING) == 0)
-			goto again;
-
-		m->m_len = m->m_pkthdr.len = n;
-		m->m_pkthdr.rcvif = ifp;
-		bpf_mtap(ifp, m);
-		ether_input(ifp, m);
 	}
 
-	kthread_exit(0);
+	m->m_pkthdr.rcvif = ifp;
+	bpf_mtap(ifp, m);
+	ether_input(ifp, m);
 }

@@ -22,4 +22,6 @@
 #define VIFHYPER_DYING VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_dying)
 #define VIFHYPER_DESTROY VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_destroy)
 #define VIFHYPER_SEND VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_send)
-#define VIFHYPER_RECV VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_recv)
+
+struct virtif_sc;
+void rump_virtif_pktdeliver(struct virtif_sc *, struct iovec *, size_t);
