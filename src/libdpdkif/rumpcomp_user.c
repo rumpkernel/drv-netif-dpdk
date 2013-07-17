@@ -170,8 +170,9 @@ deliverframe(struct virtif_user *viu)
 	struct iovec iov[STACK_IOV];
 	struct iovec *iovp, *iovp0;
 
-	assert(viu->viu_nbufpkts > 0);
+	assert(viu->viu_nbufpkts > 0 && viu->viu_bufidx < MAX_PKT_BURST);
 	m0 = viu->viu_m_pkts[viu->viu_bufidx];
+	assert(m0 != NULL);
 	viu->viu_bufidx++;
 	viu->viu_nbufpkts--;
 
