@@ -81,7 +81,7 @@ static const char *ealargs[] = {
  */
 
 #define MBSIZE	2048
-#define MBALIGN	32
+#define MBCACHE	32
 #define NMBUF	8192
 #define NDESC	256
 #define NQUEUE	1
@@ -137,7 +137,8 @@ globalinit(struct virtif_user *viu)
 	    /*UNCONST*/(void *)(uintptr_t)ealargs)) < 0)
 		OUT("eal init\n");
 
-	if ((mbpool = rte_mempool_create("mbuf_pool", NMBUF, MBSIZE, MBALIGN,
+	/* disable mempool cache due to DPDK bug, not thread safe */
+	if ((mbpool = rte_mempool_create("mbuf_pool", NMBUF, MBSIZE, 0/*MBCACHE*/,
 	    sizeof(struct rte_pktmbuf_pool_private),
 	    rte_pktmbuf_pool_init, NULL,
 	    rte_pktmbuf_init, NULL, 0, 0)) == NULL) {
