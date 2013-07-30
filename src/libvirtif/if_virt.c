@@ -243,6 +243,8 @@ rump_virtif_pktdeliver(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 	}
 
 	m->m_pkthdr.rcvif = ifp;
+	KERNEL_LOCK(1, NULL);
 	bpf_mtap(ifp, m);
 	ether_input(ifp, m);
+	KERNEL_UNLOCK_LAST(NULL);
 }
