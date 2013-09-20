@@ -25,7 +25,7 @@ Status
 
 The driver has been tested to work and is able to exchange TCP traffic
 with an Internet peer.  Testing has been done at least with DPDK versions
-1.2 and 1.3.
+1.2, 1.3 and 1.4.
 
 Future plans include benchmarking, performance optimization, and
 improved configurability.
