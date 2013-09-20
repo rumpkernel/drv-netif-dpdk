@@ -56,3 +56,14 @@ The procedure is follows:
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/anttikantee/buildrump.sh)
 or the [page on rump kernels](http://www.netbsd.org/docs/rump/).
+
+
+Support
+-------
+
+If you need commercial support e.g. for development or integration, contact
+Antti Kantee <pooka@iki.fi> (Fixup Software Ltd.)
+
+For free support, please use the public
+[issue tracker](https://github.com/anttikantee/dpdk-rumptcpip/issues)
+offered by GitHub.
