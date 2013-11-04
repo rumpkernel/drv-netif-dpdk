@@ -65,7 +65,7 @@ Support
 For free support, please use the public
 [issue tracker](https://github.com/anttikantee/dpdk-rumptcpip/issues)
 offered by GitHub.  You can also try asking simple questions on
-_#rumpkernel_ on _irc.freenode.net_.
+__#rumpkernel__ on __irc.freenode.net__.
 
 If you need commercial support e.g. for development or integration, contact
 Antti Kantee <pooka@iki.fi> (Fixup Software Ltd.)
