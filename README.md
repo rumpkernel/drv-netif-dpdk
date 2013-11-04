@@ -49,7 +49,8 @@ The procedure is follows:
 * in `src/libdpdkif` of this repo, edit the parameters at the top of
   rumpcomp_user.c, e.g. the interface port to be used.
 * still in `src/libdpdkif`: `../../rumptools/rumpmake dependall &&
-  ../../rumptools/rumpmake install`.
+  ../../rumptools/rumpmake install`.  Note that you need `RTE_SDK`
+  and `RTE_TARGET` set in the normal DPDK manner.
 
 You can now link and use the DPDK interface driver (`librumpnet_dpdkif`)
 into applications.
