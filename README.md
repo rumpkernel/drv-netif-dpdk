@@ -45,7 +45,7 @@ as instructed below.
 The procedure is follows:
 
 * `git submodule update --init`
-* `buildrump.sh/buildrump.sh -s rumpsrc -T rumptools`
+* `./buildrump.sh/buildrump.sh -s rumpsrc -T rumptools`
 * in `src/libdpdkif` of this repo, edit the parameters at the top of
   rumpcomp_user.c, e.g. the interface port to be used.
 * still in `src/libdpdkif`: `../../rumptools/rumpmake dependall &&
