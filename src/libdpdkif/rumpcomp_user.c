@@ -150,8 +150,10 @@ globalinit(struct virtif_user *viu)
 		OUT("pmd init\n");
 	if ((rv = rte_eal_pci_probe()) < 0)
 		OUT("PCI probe\n");
-	if ((rv = rte_eth_dev_count()) == 0)
+	if (rte_eth_dev_count() == 0) {
+		rv = -1;
 		OUT("no ports\n");
+	}
 	rv = 0;
 
  out:
