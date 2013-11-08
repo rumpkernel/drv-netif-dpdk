@@ -106,6 +106,7 @@ static struct rte_mempool *mbpool;
 
 struct virtif_user {
 	int viu_devnum;
+	int viu_dying;
 	struct virtif_sc *viu_virtifsc;
 	pthread_t viu_rcvpt;
 
@@ -208,7 +209,7 @@ receiver(void *arg)
 	rumpuser_component_kthread();
 
 	/* step 2: deliver packets until interface is decommissioned */
-	for (;;) {
+	while (!viu->viu_dying) {
 		/* we have cached frames. schedule + deliver */
 		if (viu->viu_nbufpkts > 0) {
 			rumpuser_component_schedule(NULL);
@@ -235,7 +236,6 @@ receiver(void *arg)
 		}
 	}
 
-	assert(0);
 	return NULL;
 }
 
@@ -324,12 +324,15 @@ void
 VIFHYPER_DYING(struct virtif_user *viu)
 {
 
-	abort();
+	viu->viu_dying = 1;
 }
 
 void
 VIFHYPER_DESTROY(struct virtif_user *viu)
 {
 
-	abort();
+	assert(viu->viu_dying);
+	pthread_join(viu->viu_rcvpt, NULL);
+	/* XXX: missing some features, fix when fixing globalinit() */
+	free(viu);
 }
