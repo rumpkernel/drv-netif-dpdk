@@ -1,7 +1,7 @@
 language: c
 
 before_install:
- - sudo apt-get install linux-headers-generic -y
+ - sudo apt-get install linux-headers-$(uname -r) -y
 
 script:
  - git submodule update --init
