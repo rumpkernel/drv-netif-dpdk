@@ -55,6 +55,9 @@ The procedure is follows:
 You can now link and use the DPDK interface driver (`librumpnet_dpdkif`)
 into applications.
 
+Note, DPDK is provided as a git submodule for convenience.  You can also
+use other versions of DPDK if you so choose.
+
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/anttikantee/buildrump.sh)
 or the [page on rump kernels](http://www.netbsd.org/docs/rump/).
