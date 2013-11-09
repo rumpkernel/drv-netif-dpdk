@@ -1,5 +1,8 @@
 language: c
 
+before_install:
+ - sudo apt-get install linux-headers-generic -y
+
 script:
  - git submodule update --init
  - ./buildrump.sh/buildrump.sh -T rumptools -s rumpsrc -V NOSTATICLIB=1 -qq -j16 checkout fullbuild
