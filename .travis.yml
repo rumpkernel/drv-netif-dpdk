@@ -1,7 +1,8 @@
 language: c
 
 before_install:
- - sudo apt-get install linux-headers-$(uname -r) -y
+ - wget http://download.openvz.org/debian/dists/wheezy/main/binary-amd64/devel/linux-headers-$(uname -r)_1.openvz_amd64.deb
+ - sudo dpkg --install linux-headers-$(uname -r)_1.openvz_amd64.deb
 
 script:
  - git submodule update --init
