@@ -1,6 +1,6 @@
 # If you're using anything but the default, change this to
 # point to your installation destination directory.
-RD=../../../buildrump.sh/rump
+RD=../../rump
 
 all: webbrowser
 
