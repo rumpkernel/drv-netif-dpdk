@@ -23,5 +23,8 @@
 #define VIFHYPER_DESTROY VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_destroy)
 #define VIFHYPER_SEND VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_send)
 
+#define VIFHYPER_FLAGS VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_flags)
+
+#define VIF_DELIVERPKT VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_deliverpkt)
+
 struct virtif_sc;
-void rump_virtif_pktdeliver(struct virtif_sc *, struct iovec *, size_t);

@@ -70,6 +70,10 @@ static void	virtif_stop(struct ifnet *, int);
 struct virtif_sc {
 	struct ethercom sc_ec;
 	struct virtif_user *sc_viu;
+
+	int sc_num;
+	char *sc_linkstr;
+	size_t sc_linkstrlen;
 };
 
 static int  virtif_clone(struct if_clone *, int);
@@ -79,29 +83,41 @@ struct if_clone VIF_CLONER =
     IF_CLONE_INITIALIZER(VIF_NAME, virtif_clone, virtif_unclone);
 
 static int
+virtif_create(struct ifnet *ifp)
+{
+	uint8_t enaddr[ETHER_ADDR_LEN] = { 0xb2, 0x0a, 0x00, 0x0b, 0x0e, 0x01 };
+	char enaddrstr[3*ETHER_ADDR_LEN];
+	struct virtif_sc *sc = ifp->if_softc;
+	int error;
+
+	if (sc->sc_viu)
+		panic("%s: already created", ifp->if_xname);
+
+	enaddr[2] = cprng_fast32() & 0xff;
+	enaddr[5] = sc->sc_num & 0xff;
+
+	if ((error = VIFHYPER_CREATE(sc->sc_linkstr,
+	    sc, enaddr, &sc->sc_viu)) != 0) {
+		return error;
+	}
+	IFQ_SET_READY(&ifp->if_snd);
+
+	ether_ifattach(ifp, enaddr);
+	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
+	aprint_normal_ifnet(ifp, "Ethernet address %s\n", enaddrstr);
+
+	return 0;
+}
+
+static int
 virtif_clone(struct if_clone *ifc, int num)
 {
 	struct virtif_sc *sc;
-	struct virtif_user *viu;
 	struct ifnet *ifp;
-	uint8_t enaddr[ETHER_ADDR_LEN] = { 0xb2, 0x0a, 0x00, 0x0b, 0x0e, 0x01 };
-	char enaddrstr[3*ETHER_ADDR_LEN];
 	int error = 0;
 
-	if (num >= 0x100)
-		return E2BIG;
-
-	enaddr[2] = cprng_fast32() & 0xff;
-	enaddr[5] = num;
-
 	sc = kmem_zalloc(sizeof(*sc), KM_SLEEP);
-
-	if ((error = VIFHYPER_CREATE(num, sc, enaddr, &viu)) != 0) {
-		kmem_free(sc, sizeof(*sc));
-		return error;
-	}
-	sc->sc_viu = viu;
-
+	sc->sc_num = num;
 	ifp = &sc->sc_ec.ec_if;
 	sprintf(ifp->if_xname, "%s%d", VIF_NAME, num);
 	ifp->if_softc = sc;
@@ -111,17 +127,28 @@ virtif_clone(struct if_clone *ifc, int num)
 	ifp->if_ioctl = virtif_ioctl;
 	ifp->if_start = virtif_start;
 	ifp->if_stop = virtif_stop;
-	IFQ_SET_READY(&ifp->if_snd);
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_dlt = DLT_EN10MB;
 
 	if_attach(ifp);
-	ether_ifattach(ifp, enaddr);
 
-	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
-	aprint_normal_ifnet(ifp, "Ethernet address %s\n", enaddrstr);
-
+#ifndef RUMP_VIF_LINKSTR
+	/*
+	 * if the underlying interface does not expect linkstr, we can
+	 * create everything now.  Otherwise, we need to wait for
+	 * SIOCSLINKSTR.
+	 */
+#define LINKSTRNUMLEN 16
+	sc->sc_linkstr = kmem_alloc(LINKSTRNUMLEN, KM_SLEEP);
+	snprintf(sc->sc_linkstr, LINKSTRNUMLEN, "%d", sc->sc_num);
+#undef LINKSTRNUMLEN
+	error = virtif_create(ifp);
 	if (error) {
-		virtif_unclone(ifp);
+		if_detach(ifp);
+		kmem_free(sc, sizeof(*sc));
+		ifp->if_softc = NULL;
 	}
+#endif /* !RUMP_VIF_LINKSTR */
 
 	return error;
 }
@@ -149,6 +176,10 @@ virtif_unclone(struct ifnet *ifp)
 static int
 virtif_init(struct ifnet *ifp)
 {
+	struct virtif_sc *sc = ifp->if_softc;
+
+	if (sc->sc_viu == NULL)
+		return ENXIO;
 
 	ifp->if_flags |= IFF_RUNNING;
 	return 0;
@@ -157,13 +188,88 @@ virtif_init(struct ifnet *ifp)
 static int
 virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 {
-	int s, rv;
+	struct virtif_sc *sc = ifp->if_softc;
+	int rv;
 
-	s = splnet();
-	rv = ether_ioctl(ifp, cmd, data);
-	if (rv == ENETRESET)
-		rv = 0;
-	splx(s);
+	switch (cmd) {
+#ifdef RUMP_VIF_LINKSTR
+	struct ifdrv *ifd;
+
+#ifndef RUMP_VIF_LINKSTRMAX
+#define RUMP_VIF_LINKSTRMAX 4096
+#endif
+
+	case SIOCGLINKSTR:
+		ifd = data;
+
+		if (!sc->sc_linkstr) {
+			rv = ENOENT;
+			break;
+		}
+		ifd->ifd_len = sc->sc_linkstrlen;
+
+		if (ifd->ifd_cmd == IFLINKSTR_QUERYLEN) {
+			rv = 0;
+			break;
+		}
+		if (ifd->ifd_cmd != 0) {
+			rv = ENOTTY;
+			break;
+		}
+
+		rv = copyoutstr(sc->sc_linkstr, ifd->ifd_data,
+		    MIN(sc->sc_linkstrlen, ifd->ifd_len), NULL);
+		break;
+	case SIOCSLINKSTR:
+		if (ifp->if_flags & IFF_UP) {
+			rv = EBUSY;
+			break;
+		}
+
+		ifd = data;
+
+		if (ifd->ifd_cmd == IFLINKSTR_UNSET) {
+			panic("unset linkstr not implemented");
+		} else if (ifd->ifd_cmd != 0) {
+			rv = ENOTTY;
+			break;
+		} else if (sc->sc_linkstr) {
+			rv = EBUSY;
+			break;
+		}
+
+		if (ifd->ifd_len > RUMP_VIF_LINKSTRMAX) {
+			rv = E2BIG;
+			break;
+		} else if (ifd->ifd_len < 1) {
+			rv = EINVAL;
+			break;
+		}
+
+
+		sc->sc_linkstr = kmem_alloc(ifd->ifd_len, KM_SLEEP);
+		rv = copyinstr(ifd->ifd_data, sc->sc_linkstr,
+		    ifd->ifd_len, NULL);
+		if (rv) {
+			kmem_free(sc->sc_linkstr, ifd->ifd_len);
+			break;
+		}
+
+		rv = virtif_create(ifp);
+		if (rv) {
+			kmem_free(sc->sc_linkstr, ifd->ifd_len);
+		}
+		break;
+#endif /* RUMP_VIF_LINKSTR */
+	default:
+		if (!sc->sc_linkstr)
+			rv = ENXIO;
+		else
+			rv = ether_ioctl(ifp, cmd, data);
+		if (rv == ENETRESET)
+			rv = 0;
+		break;
+	}
 
 	return rv;
 }
@@ -212,11 +318,13 @@ static void
 virtif_stop(struct ifnet *ifp, int disable)
 {
 
+	/* XXX: VIFHYPER_STOP() */
+
 	ifp->if_flags &= ~IFF_RUNNING;
 }
 
 void
-rump_virtif_pktdeliver(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
+VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 {
 	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	struct mbuf *m;

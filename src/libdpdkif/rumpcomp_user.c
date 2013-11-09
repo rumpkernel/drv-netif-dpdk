@@ -105,7 +105,7 @@ static const struct rte_eth_txconf txconf = {
 static struct rte_mempool *mbpool;
 
 struct virtif_user {
-	int viu_devnum;
+	char *viu_devstr;
 	int viu_dying;
 	struct virtif_sc *viu_virtifsc;
 	pthread_t viu_rcvpt;
@@ -122,7 +122,7 @@ ifwarn(struct virtif_user *viu, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fprintf(stderr, "warning dpdkif%d: ", viu->viu_devnum);
+	fprintf(stderr, "warning dpdkif%s: ", viu->viu_devstr);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -193,7 +193,7 @@ deliverframe(struct virtif_user *viu)
 		iovp->iov_base = rte_pktmbuf_mtod(m, void *);
 		iovp->iov_len = rte_pktmbuf_data_len(m);
 	}
-	rump_virtif_pktdeliver(viu->viu_virtifsc, iovp0, iovp-iovp0);
+	VIF_DELIVERPKT(viu->viu_virtifsc, iovp0, iovp-iovp0);
 
 	rte_pktmbuf_free(m0);
 	if (iovp0 != iov)
@@ -241,7 +241,7 @@ receiver(void *arg)
 
 
 int
-VIFHYPER_CREATE(int devnum, struct virtif_sc *vif_sc, uint8_t *enaddr,
+VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 	struct virtif_user **viup)
 {
 	struct rte_eth_conf portconf;
@@ -252,7 +252,7 @@ VIFHYPER_CREATE(int devnum, struct virtif_sc *vif_sc, uint8_t *enaddr,
 
 	viu = malloc(sizeof(*viu));
 	memset(viu, 0, sizeof(*viu));
-	viu->viu_devnum = devnum;
+	viu->viu_devstr = strdup(devstr);
 	viu->viu_virtifsc = vif_sc;
 
 	/* this is here only for simplicity */
