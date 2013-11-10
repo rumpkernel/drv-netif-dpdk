@@ -6,7 +6,7 @@ before_install:
 
 before_script:
  - export RTE_SDK=$(pwd)/dpdk
- - export RTE_target=build
+ - export RTE_TARGET=build
 
 script:
  - git submodule update --init
