@@ -1,12 +1,9 @@
 language: c
 
-before_install:
- - wget http://download.openvz.org/debian/dists/wheezy/main/binary-amd64/devel/linux-headers-$(uname -r)_1.openvz_amd64.deb
- - sudo dpkg --install linux-headers-$(uname -r)_1.openvz_amd64.deb
-
 script:
  - git submodule update --init
  - ./buildrump.sh/buildrump.sh -T rumptools -s rumpsrc -V NOSTATICLIB=1 -qq -j16 checkout fullbuild
+ - ls -l /usr/src
  - (cd dpdk ; make T=x86_64-default-linuxapp-gcc config && make )
  - ( export RTE_SDK=`pwd`/dpdk; export RTE_TARGET=build; cd src/libdpdkif; ../../rumptools/rumpmake dependall && ../../rumptools/rumpmake install )
  - (cd examples/tcp_http_get ; make )
