@@ -10,7 +10,7 @@ before_script:
  - export RTE_TARGET=build
 
 script:
- - ./buildrump.sh/buildrump.sh -T rumptools -s rumpsrc -V NOSTATICLIB=1 -qq -j16 checkout fullbuild
+ - ./buildrump.sh/buildrump.sh -T rumptools -s rumpsrc -V MKPIC=no -qq -j16 checkout fullbuild
  - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r) && ls -l /lib/modules
  - (cd dpdk ; make T=x86_64-default-linuxapp-gcc config && make )
  - ( cd src/libdpdkif; ../../rumptools/rumpmake dependall && ../../rumptools/rumpmake install )
