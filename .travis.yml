@@ -3,13 +3,13 @@ language: c
 before_install:
  - sudo apt-get -y update
  - sudo apt-get -y install linux-headers-generic
+ - git submodule update --init
 
 before_script:
  - export RTE_SDK=$(pwd)/dpdk
  - export RTE_TARGET=build
 
 script:
- - git submodule update --init
  - ./buildrump.sh/buildrump.sh -T rumptools -s rumpsrc -V NOSTATICLIB=1 -qq -j16 checkout fullbuild
  - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r) && ls -l /lib/modules
  - (cd dpdk ; make T=x86_64-default-linuxapp-gcc config && make )
