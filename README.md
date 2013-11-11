@@ -1,4 +1,4 @@
-TCP/IP stack for DPDK
+TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/anttikantee/dpdk-rumptcpip.png?branch=master)](https://travis-ci.org/anttikantee/dpdk-rumptcpip)
 =====================
 
 The hypercall driver in this repository attaches a userspace
