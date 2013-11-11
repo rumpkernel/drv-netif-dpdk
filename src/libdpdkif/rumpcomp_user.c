@@ -70,7 +70,7 @@ static const char *ealargs[] = {
 
 /* change to the init method of your NIC driver */
 #ifndef PMD_INIT
-#define PMD_INIT rte_igb_pmd_init
+#define PMD_INIT rte_pmd_init_all
 #endif
 
 /* Receive packets in bursts of 16 per read */
