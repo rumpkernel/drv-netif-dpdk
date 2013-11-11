@@ -11,7 +11,7 @@ before_script:
 
 script:
  - ./buildrump.sh/buildrump.sh -T rumptools -s rumpsrc -V MKPIC=no -qq -j16 checkout fullbuild
- - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r) && ls -l /lib/modules
+ - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r)
  - (cd dpdk ; make T=x86_64-default-linuxapp-gcc config && make )
  - ( cd src/libdpdkif; ../../rumptools/rumpmake dependall && ../../rumptools/rumpmake install )
  - (cd examples/tcp_http_get ; make )
