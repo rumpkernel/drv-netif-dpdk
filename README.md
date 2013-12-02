@@ -69,10 +69,11 @@ or the [page on rump kernels](http://www.netbsd.org/docs/rump/).
 Support
 -------
 
-For free support, please use the public
-[issue tracker](https://github.com/anttikantee/dpdk-rumptcpip/issues)
-offered by GitHub.  You can also try asking simple questions on
-__#rumpkernel__ on __irc.freenode.net__.
+For free support, please use the rump kernel
+mailing list at rumpkernel-users@lists.sourceforge.net
+([subscribe](https://lists.sourceforge.net/lists/listinfo/rumpkernel-users)
+before posting).  You can also ask simple questions on __#rumpkernel__
+on __irc.freenode.net__.
 
 If you need commercial support e.g. for development or integration, contact
 Antti Kantee <pooka@iki.fi> (Fixup Software Ltd.)
