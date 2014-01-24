@@ -76,4 +76,4 @@ before posting).  You can also ask simple questions on __#rumpkernel__
 on __irc.freenode.net__.
 
 If you need commercial support e.g. for development or integration, contact
-Antti Kantee <pooka@iki.fi> (Fixup Software Ltd.)
+[Fixup Software Ltd.](http://www.fixup.fi/).
