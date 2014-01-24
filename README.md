@@ -2,7 +2,7 @@ TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/rumpkernel/dpdk-rum
 =====================
 
 The hypercall driver in this repository attaches a userspace
-[rump kernel](http://www.netbsd.org/docs/rump/) TCP/IP
+[rump kernel](http://rumpkernel.org/) TCP/IP
 stack to a network interface card accessed via the Intel Data Plane
 Development Kit [DPDK](http://dpdk.org/).
 
@@ -63,7 +63,7 @@ obtained by going to the `dpdk` subdirectory and running `git describe`.
 
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/rumpkernel/buildrump.sh)
-or the [page on rump kernels](http://www.netbsd.org/docs/rump/).
+or http://rumpkernel.org/.
 
 
 Support
