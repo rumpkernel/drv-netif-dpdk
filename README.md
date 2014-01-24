@@ -1,4 +1,4 @@
-TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/anttikantee/dpdk-rumptcpip.png?branch=master)](https://travis-ci.org/anttikantee/dpdk-rumptcpip)
+TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/rumpkernel/dpdk-rumptcpip.png?branch=master)](https://travis-ci.org/rumpkernel/dpdk-rumptcpip)
 =====================
 
 The hypercall driver in this repository attaches a userspace
@@ -30,7 +30,7 @@ with an Internet peer.  Testing has been done at least with DPDK versions
 Future plans include benchmarking, performance optimization, and
 improved configurability.
 
-A [wiki page](https://github.com/anttikantee/dpdk-rumptcpip/wiki/Optimizing-performance) documents some ideas for potential performance optimizations.
+A [wiki page](https://github.com/rumpkernel/dpdk-rumptcpip/wiki/Optimizing-performance) documents some ideas for potential performance optimizations.
 
 
 Instructions
@@ -39,7 +39,7 @@ Instructions
 To use, in addition to a working DPDK installation you need the rump
 kernel TCP/IP stack components.  The easiest way to obtain the rump
 kernel components is to use the
-[buildrump.sh](https://github.com/anttikantee/buildrump.sh) submodule,
+[buildrump.sh](https://github.com/rumpkernel/buildrump.sh) submodule,
 as instructed below.
 
 The procedure is follows:
@@ -62,7 +62,7 @@ least as recent as the submodule.  The DPDK submodule revision can be
 obtained by going to the `dpdk` subdirectory and running `git describe`.
 
 For more information on how to use the resulting userspace TCP/IP stack,
-see e.g. the [buildrump.sh repo](https://github.com/anttikantee/buildrump.sh)
+see e.g. the [buildrump.sh repo](https://github.com/rumpkernel/buildrump.sh)
 or the [page on rump kernels](http://www.netbsd.org/docs/rump/).
 
 
