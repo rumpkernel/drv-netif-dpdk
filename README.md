@@ -23,7 +23,8 @@ in rough diagram form:
 Status
 ------
 
-The driver has been tested to work and is able to exchange TCP traffic
+The driver has been tested to work on various Linux distributions
+(e.g. Ubuntu and Void) and is able to exchange TCP traffic
 with an Internet peer.  Future plans include benchmarking,
 performance optimization, and improved configurability.  A
 [wiki page](https://github.com/rumpkernel/dpdk-rumptcpip/wiki/Optimizing-performance)
