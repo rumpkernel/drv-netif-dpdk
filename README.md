@@ -38,7 +38,7 @@ The procedure is follows:
 * `git submodule update --init`
 * `./buildrump.sh/buildrump.sh -s rumpsrc -T rumptools`
 * in `src/libdpdkif` of this repo, edit the parameters at the top of
-  rumpcomp_user.c, e.g. the interface port to be used.
+  `rumpcomp_user.c`, e.g. the interface port to be used.
 * still in `src/libdpdkif`, run: `../../rumptools/rumpmake dependall &&
   ../../rumptools/rumpmake install`.  Note that you need `RTE_SDK`
   and `RTE_TARGET` set in the normal DPDK manner (consult DPDK docs).
@@ -64,8 +64,8 @@ Support
 
 For free support, use the rump kernel mailing
 list at rumpkernel-users@lists.sourceforge.net
-([subscribe](https://lists.sourceforge.net/lists/listinfo/rumpkernel-users)
-before posting).  You can also ask simple questions on irc: __#rumpkernel__
+(you can [subscribe here](https://lists.sourceforge.net/lists/listinfo/rumpkernel-users)).
+You can also ask simple questions on irc: __#rumpkernel__
 on __irc.freenode.net__.  Please do not send private email.
 
 If you need commercial support e.g. for development or integration,
