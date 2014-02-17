@@ -16,3 +16,6 @@ script:
  - ( cd src/libdpdkif; ../../rumptools/rumpmake dependall && ../../rumptools/rumpmake install )
  - (cd examples/tcp_http_get ; make )
  - (cd examples/udp_echo_server ; make )
+
+notifications:
+  irc: "chat.freenode.net#rumpkernel-builds"
