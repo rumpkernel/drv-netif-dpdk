@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <arpa/inet.h>
+
 #include <rump/rump.h>
 #include <rump/netconfig.h>
 #include <rump/rump_syscalls.h>
