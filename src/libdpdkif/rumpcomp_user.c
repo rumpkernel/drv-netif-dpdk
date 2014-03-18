@@ -52,7 +52,7 @@
 #include <rump/rumpuser_component.h>
 
 #include "if_virt.h"
-#include "rumpcomp_user.h"
+#include "virtif_user.h"
 
 /*
  * Configurables.  Adjust these to be appropriate for your system.
@@ -322,11 +322,12 @@ VIFHYPER_SEND(struct virtif_user *viu,
 	rte_eth_tx_burst(IF_PORTID, 0, &m, 1);
 }
 
-void
+int
 VIFHYPER_DYING(struct virtif_user *viu)
 {
 
 	viu->viu_dying = 1;
+	return 0;
 }
 
 void

@@ -1,4 +1,4 @@
-/*	$NetBSD: if_virt.c,v 1.36 2013/07/04 11:46:51 pooka Exp $	*/
+/*	$NetBSD: if_virt.c,v 1.44 2014/03/13 21:11:12 pooka Exp $	*/
 
 /*
  * Copyright (c) 2008, 2013 Antti Kantee.  All Rights Reserved.
@@ -26,35 +26,24 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: if_virt.c,v 1.36 2013/07/04 11:46:51 pooka Exp $");
+__KERNEL_RCSID(0, "$NetBSD: if_virt.c,v 1.44 2014/03/13 21:11:12 pooka Exp $");
 
 #include <sys/param.h>
-#include <sys/condvar.h>
-#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kmem.h>
-#include <sys/kthread.h>
-#include <sys/mutex.h>
-#include <sys/poll.h>
-#include <sys/sockio.h>
-#include <sys/socketvar.h>
 #include <sys/cprng.h>
+#include <sys/module.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_ether.h>
-#include <net/if_tap.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 
-#include <rump/rump.h>
-
-#include "rump_private.h"
-#include "rump_net_private.h"
-
 #include "if_virt.h"
-#include "rumpcomp_user.h"
+#include "virtif_user.h"
 
 /*
  * Virtual interface.  Uses hypercalls to shovel packets back
@@ -73,7 +62,6 @@ struct virtif_sc {
 
 	int sc_num;
 	char *sc_linkstr;
-	size_t sc_linkstrlen;
 };
 
 static int  virtif_clone(struct if_clone *, int);
@@ -98,13 +86,15 @@ virtif_create(struct ifnet *ifp)
 
 	if ((error = VIFHYPER_CREATE(sc->sc_linkstr,
 	    sc, enaddr, &sc->sc_viu)) != 0) {
+		printf("VIFHYPER_CREATE failed: %d\n", error);
 		return error;
 	}
-	IFQ_SET_READY(&ifp->if_snd);
 
 	ether_ifattach(ifp, enaddr);
 	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
 	aprint_normal_ifnet(ifp, "Ethernet address %s\n", enaddrstr);
+
+	IFQ_SET_READY(&ifp->if_snd);
 
 	return 0;
 }
@@ -157,8 +147,13 @@ static int
 virtif_unclone(struct ifnet *ifp)
 {
 	struct virtif_sc *sc = ifp->if_softc;
+	int rv;
 
-	VIFHYPER_DYING(sc->sc_viu);
+	if (ifp->if_flags & IFF_UP)
+		return EBUSY;
+
+	if ((rv = VIFHYPER_DYING(sc->sc_viu)) != 0)
+		return rv;
 
 	virtif_stop(ifp, 1);
 	if_down(ifp);
@@ -194,6 +189,7 @@ virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 	switch (cmd) {
 #ifdef RUMP_VIF_LINKSTR
 	struct ifdrv *ifd;
+	size_t linkstrlen;
 
 #ifndef RUMP_VIF_LINKSTRMAX
 #define RUMP_VIF_LINKSTRMAX 4096
@@ -206,9 +202,10 @@ virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 			rv = ENOENT;
 			break;
 		}
-		ifd->ifd_len = sc->sc_linkstrlen;
+		linkstrlen = strlen(sc->sc_linkstr)+1;
 
 		if (ifd->ifd_cmd == IFLINKSTR_QUERYLEN) {
+			ifd->ifd_len = linkstrlen;
 			rv = 0;
 			break;
 		}
@@ -217,8 +214,8 @@ virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 			break;
 		}
 
-		rv = copyoutstr(sc->sc_linkstr, ifd->ifd_data,
-		    MIN(sc->sc_linkstrlen, ifd->ifd_len), NULL);
+		rv = copyoutstr(sc->sc_linkstr,
+		    ifd->ifd_data, MIN(ifd->ifd_len,linkstrlen), NULL);
 		break;
 	case SIOCSLINKSTR:
 		if (ifp->if_flags & IFF_UP) {
@@ -276,8 +273,8 @@ virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 
 /*
  * Output packets in-context until outgoing queue is empty.
- * Assume that VIFHYPER_SEND() is fast enough to not make it
- * necessary to drop kernel_lock.
+ * Leave responsibility of choosing whether or not to drop the
+ * kernel lock to VIPHYPER_SEND().
  */
 #define LB_SH 32
 static void
@@ -297,12 +294,15 @@ virtif_start(struct ifnet *ifp)
 		}
 
 		m = m0;
-		for (i = 0; i < LB_SH && m; i++) {
-			io[i].iov_base = mtod(m, void *);
-			io[i].iov_len = m->m_len;
+		for (i = 0; i < LB_SH && m; ) {
+			if (m->m_len) {
+				io[i].iov_base = mtod(m, void *);
+				io[i].iov_len = m->m_len;
+				i++;
+			}
 			m = m->m_next;
 		}
-		if (i == LB_SH)
+		if (i == LB_SH && m)
 			panic("lazy bum");
 		bpf_mtap(ifp, m0);
 
@@ -327,9 +327,13 @@ void
 VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 {
 	struct ifnet *ifp = &sc->sc_ec.ec_if;
+	struct ether_header *eth;
 	struct mbuf *m;
 	size_t i;
 	int off, olen;
+	bool passup;
+	const int align
+	    = ALIGN(sizeof(struct ether_header)) - sizeof(struct ether_header);
 
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
@@ -339,7 +343,7 @@ VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 		return; /* drop packet */
 	m->m_len = m->m_pkthdr.len = 0;
 
-	for (i = 0, off = 0; i < iovlen; i++) {
+	for (i = 0, off = align; i < iovlen; i++) {
 		olen = m->m_pkthdr.len;
 		m_copyback(m, off, iov[i].iov_len, iov[i].iov_base);
 		off += iov[i].iov_len;
@@ -350,9 +354,56 @@ VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 		}
 	}
 
-	m->m_pkthdr.rcvif = ifp;
-	KERNEL_LOCK(1, NULL);
-	bpf_mtap(ifp, m);
-	ether_input(ifp, m);
-	KERNEL_UNLOCK_LAST(NULL);
+	m->m_data += align;
+	eth = mtod(m, struct ether_header *);
+	if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
+	    ETHER_ADDR_LEN) == 0) {
+		passup = true;
+	} else if (ETHER_IS_MULTICAST(eth->ether_dhost)) {
+		passup = true;
+	} else if (ifp->if_flags & IFF_PROMISC) {
+		m->m_flags |= M_PROMISC;
+		passup = true;
+	} else {
+		passup = false;
+	}
+
+	if (passup) {
+		m->m_pkthdr.rcvif = ifp;
+		KERNEL_LOCK(1, NULL);
+		bpf_mtap(ifp, m);
+		ifp->if_input(ifp, m);
+		KERNEL_UNLOCK_LAST(NULL);
+	} else {
+		m_freem(m);
+	}
+	m = NULL;
+}
+
+MODULE(MODULE_CLASS_DRIVER, if_virt, NULL);
+
+static int
+if_virt_modcmd(modcmd_t cmd, void *opaque)
+{
+	int error = 0;
+
+	switch (cmd) {
+	case MODULE_CMD_INIT:
+		if_clone_attach(&VIF_CLONER);
+		break;
+	case MODULE_CMD_FINI:
+		/*
+		 * not sure if interfaces are refcounted
+		 * and properly protected
+		 */
+#if 0
+		if_clone_detach(&VIF_CLONER);
+#else
+		error = ENOTTY;
+#endif
+		break;
+	default:
+		error = ENOTTY;
+	}
+	return error;
 }
