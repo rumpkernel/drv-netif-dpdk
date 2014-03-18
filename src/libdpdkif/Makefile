@@ -2,7 +2,7 @@ LIB=	rumpnet_dpdkif
 VIRTIF=	dpdk
 
 RUMPTOP= ${TOPRUMP}
-.include "${RUMPTOP}/net/lib/libvirtif/Makefile.virtif"
+.include "${.CURDIR}/../libvirtif/Makefile.virtif"
 
 RUMPCOMP_USER_SRCS=	rumpcomp_user.c
 RUMPCOMP_USER_CPPFLAGS+= -I${RTE_SDK}/${RTE_TARGET}/include
