@@ -47,12 +47,10 @@ The procedure is follows:
 You can now link and use the DPDK interface driver (`librumpnet_dpdkif`)
 into applications.
 
-DPDK is provided as a git submodule mostly for autobuild purposes.
-You can also use DPDK from other sources/installations (via `RTE_SDK`).
-It is advisable -- even if not always strictly necessary -- to use a
-DPDK revision at least as recent as the submodule.  The DPDK submodule
-revision can be obtained by going to the `dpdk` subdirectory and running
-`git describe`.
+Using the revision of DPDK included as a submodule is highly recommended.
+It is possible to use another version of DPDK, but in that case be
+aware that the combination may not be tested, and you should prepare to
+debug and fix any resulting problems yourself.
 
 For more information on how to use the resulting userspace TCP/IP stack,
 see e.g. the [buildrump.sh repo](https://github.com/rumpkernel/buildrump.sh)
