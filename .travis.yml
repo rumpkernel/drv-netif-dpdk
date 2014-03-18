@@ -14,8 +14,8 @@ script:
  - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r)
  - (cd dpdk ; make T=$(uname -m)-default-linuxapp-gcc config && make )
  - ( cd src/libdpdkif; ../../rumptools/rumpmake dependall && ../../rumptools/rumpmake install )
- - (cd examples/tcp_http_get ; make )
- - (cd examples/udp_echo_server ; make )
+ - (cd examples/tcp_http_get ; ../../rumptools/rumpmake dependall )
+ - (cd examples/udp_echo_server ;  ../../rumptools/rumpmake dependall )
 
 notifications:
   irc:
