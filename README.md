@@ -59,7 +59,7 @@ using [rumprun](https://github.com/rumpkernel/rumprun/) is recommended.
 There are some very simple examples in the `examples` directory.  These
 can be built using `rumpmake` (cf. above).
 
-_NOTE_: To successfully use the TCP/IP stack, you must have the host correctly
+__NOTE__: To successfully use the TCP/IP stack, you must have the host correctly
 configured for running DPDK.  This means you have to the appropriate host
 kernel configurations set and the necessary kernel modules loaded.  These
 steps are not documented here.  Consult DPDK documentation.
