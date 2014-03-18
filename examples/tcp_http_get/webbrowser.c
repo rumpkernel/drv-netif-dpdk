@@ -49,7 +49,7 @@ main()
 	rump_init();
 
 	if ((e = rump_pub_netconfig_ifcreate("dpdk0")) != 0)
-		die(e, "create virt0");
+		die(e, "create dpdk0");
 	if ((e = rump_pub_netconfig_dhcp_ipv4_oneshot("dpdk0")) != 0)
 		die(e, "dhcp address");
 
