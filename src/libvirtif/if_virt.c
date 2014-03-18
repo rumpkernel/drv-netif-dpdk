@@ -355,7 +355,6 @@ VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 	}
 
 	m->m_data += align;
-	m->m_pkthdr.len -= align;
 	eth = mtod(m, struct ether_header *);
 	if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
 	    ETHER_ADDR_LEN) == 0) {
