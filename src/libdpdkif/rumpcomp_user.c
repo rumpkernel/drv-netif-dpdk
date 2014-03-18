@@ -42,6 +42,7 @@
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_eal.h>
+#include <rte_errno.h>
 #include <rte_pci.h>
 #include <rte_ether.h>
 #include <rte_ethdev.h>
@@ -82,7 +83,7 @@ static const char *ealargs[] = {
 
 #define MBSIZE	2048
 #define MBCACHE	32
-#define NMBUF	8192
+#define NMBUF	512
 #define NDESC	256
 #define NQUEUE	1
 
@@ -100,6 +101,7 @@ static const struct rte_eth_txconf txconf = {
 		.hthresh = 1,
 		.wthresh = 1,
 	},
+	.tx_rs_thresh = 1,
 };
 
 static struct rte_mempool *mbpool;
