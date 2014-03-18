@@ -4,7 +4,7 @@ VIRTIF=	dpdk
 RUMPTOP= ${TOPRUMP}
 .include "${.CURDIR}/../libvirtif/Makefile.virtif"
 
-RUMPCOMP_USER_SRCS=	rumpcomp_user.c
+RUMPCOMP_USER_SRCS=	dpdkif_user.c
 RUMPCOMP_USER_CPPFLAGS+= -I${RTE_SDK}/${RTE_TARGET}/include
 
 .include "${RUMPTOP}/Makefile.rump"
