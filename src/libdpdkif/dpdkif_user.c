@@ -138,7 +138,7 @@ globalinit(struct virtif_user *viu)
 
 	if ((rv = rte_eal_init(sizeof(ealargs)/sizeof(ealargs[0]),
 	    /*UNCONST*/(void *)(uintptr_t)ealargs)) < 0)
-		OUT("eal init\n");
+		OUT("eal init");
 
 	if ((mbpool_tx = rte_mempool_create("mbuf_pool_tx", NMBUF, MBSIZE, 0/*MBCACHE*/,
 	    sizeof(struct rte_pktmbuf_pool_private),
@@ -156,12 +156,12 @@ globalinit(struct virtif_user *viu)
 	}
 
 	if ((rv = PMD_INIT()) < 0)
-		OUT("pmd init\n");
+		OUT("pmd init");
 	if ((rv = rte_eal_pci_probe()) < 0)
-		OUT("PCI probe\n");
+		OUT("PCI probe");
 	if (rte_eth_dev_count() == 0) {
 		rv = -1;
-		OUT("no ports\n");
+		OUT("no ports");
 	}
 	rv = 0;
 
@@ -287,17 +287,17 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 	memset(&portconf, 0, sizeof(portconf));
 	if ((rv = rte_eth_dev_configure(IF_PORTID,
 	    NQUEUE, NQUEUE, &portconf)) < 0)
-		OUT("configure device\n");
+		OUT("configure device");
 
 	if ((rv = rte_eth_rx_queue_setup(IF_PORTID,
 	    0, NDESC, 0, &rxconf, mbpool_rx)) <0)
-		OUT("rx queue setup\n");
+		OUT("rx queue setup");
 
 	if ((rv = rte_eth_tx_queue_setup(IF_PORTID, 0, NDESC, 0, &txconf)) < 0)
-		OUT("tx queue setup\n");
+		OUT("tx queue setup");
 
 	if ((rv = rte_eth_dev_start(IF_PORTID)) < 0)
-		OUT("device start\n");
+		OUT("device start");
 
 	rte_eth_link_get(IF_PORTID, &link);
 	if (!link.link_status) {
