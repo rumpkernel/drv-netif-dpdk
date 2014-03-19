@@ -1,4 +1,4 @@
-/*	$NetBSD: if_virt.c,v 1.44 2014/03/13 21:11:12 pooka Exp $	*/
+/*	$NetBSD: if_virt.c,v 1.45 2014/03/18 18:10:08 pooka Exp $	*/
 
 /*
  * Copyright (c) 2008, 2013 Antti Kantee.  All Rights Reserved.
@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: if_virt.c,v 1.44 2014/03/13 21:11:12 pooka Exp $");
+__KERNEL_RCSID(0, "$NetBSD: if_virt.c,v 1.45 2014/03/18 18:10:08 pooka Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -274,43 +274,25 @@ virtif_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 /*
  * Output packets in-context until outgoing queue is empty.
  * Leave responsibility of choosing whether or not to drop the
- * kernel lock to VIPHYPER_SEND().
+ * kernel lock to VIPHYPER_SENDMBUF().
  */
-#define LB_SH 32
 static void
 virtif_start(struct ifnet *ifp)
 {
 	struct virtif_sc *sc = ifp->if_softc;
-	struct mbuf *m, *m0;
-	struct iovec io[LB_SH];
-	int i;
+	struct mbuf *m;
 
 	ifp->if_flags |= IFF_OACTIVE;
-
 	for (;;) {
-		IF_DEQUEUE(&ifp->if_snd, m0);
-		if (!m0) {
+		IF_DEQUEUE(&ifp->if_snd, m);
+		if (!m) {
 			break;
 		}
+		bpf_mtap(ifp, m);
 
-		m = m0;
-		for (i = 0; i < LB_SH && m; ) {
-			if (m->m_len) {
-				io[i].iov_base = mtod(m, void *);
-				io[i].iov_len = m->m_len;
-				i++;
-			}
-			m = m->m_next;
-		}
-		if (i == LB_SH && m)
-			panic("lazy bum");
-		bpf_mtap(ifp, m0);
-
-		VIFHYPER_SEND(sc->sc_viu, io, i);
-
-		m_freem(m0);
+		VIFHYPER_SENDMBUF(sc->sc_viu,
+		    m, m->m_pkthdr.len, m->m_data, m->m_len);
 	}
-
 	ifp->if_flags &= ~IFF_OACTIVE;
 }
 
@@ -324,38 +306,95 @@ virtif_stop(struct ifnet *ifp, int disable)
 }
 
 void
-VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
+VIF_MBUF_NEXT(struct mbuf *m, struct mbuf **n, void **data, int *dlen)
+{
+
+	*n = m = m->m_next;
+	if (m == NULL)
+		return;
+
+	*data = m->m_data;
+	*dlen = m->m_len;
+}
+
+void
+VIF_MBUF_FREE(struct mbuf *m)
+{
+
+	m_freem(m);
+}
+
+static void
+freemextbuf(struct mbuf *m, void *buf, size_t buflen, void *arg)
+{
+
+	VIFHYPER_MBUF_FREECB(buf, buflen, arg);
+	pool_cache_put(mb_cache, m);
+}
+
+int
+VIF_MBUF_EXTALLOC(struct vif_mextdata *mextd, size_t n_mextdata,
+	struct mbuf **mp)
+{
+	struct mbuf *m0, *m, *n;
+	struct vif_mextdata *md;
+	size_t totlen, i;
+	int error = 0;
+
+	KASSERT(n_mextdata > 0);
+	m0 = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m0 == NULL)
+		return ENOMEM;
+	md = &mextd[0];
+	MEXTADD(m0, md->mext_data, md->mext_dlen, MT_DATA,
+	    freemextbuf, md->mext_arg);
+	totlen = m0->m_len = md->mext_dlen;
+	m = m0;
+	for (i = 1; i < n_mextdata; i++) {
+		md = &mextd[i];
+
+		n = m_get(M_NOWAIT, MT_DATA);
+		if (n == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		m->m_next = n;
+		m = n;
+		MEXTADD(m, md->mext_data, md->mext_dlen, MT_DATA,
+		    freemextbuf, md->mext_arg);
+		totlen += md->mext_dlen;
+		m->m_len = md->mext_dlen; /* necessary? */
+	}
+
+	if (__predict_false(error)) {
+		/*
+		 * MEXTRESET?  We need to make sure freeing the mbuf
+		 * will _not_ cause the free'ing callback to execute,
+		 * otherwise the hypercall layer would be left in an
+		 * unknown (or at least hard-to-determine) state
+		 */
+		for (m = m0; m; m = m->m_next) {
+			m->m_flags &= ~M_EXT;
+			m->m_data = m->m_dat;
+		}
+		m_freem(m0);
+		m0 = NULL;
+	} else {
+		m0->m_pkthdr.len = totlen;
+	}
+	*mp = m0;
+	return error;
+}
+
+void
+VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m)
 {
 	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	struct ether_header *eth;
-	struct mbuf *m;
-	size_t i;
-	int off, olen;
 	bool passup;
-	const int align
-	    = ALIGN(sizeof(struct ether_header)) - sizeof(struct ether_header);
 
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL)
-		return; /* drop packet */
-	m->m_len = m->m_pkthdr.len = 0;
-
-	for (i = 0, off = align; i < iovlen; i++) {
-		olen = m->m_pkthdr.len;
-		m_copyback(m, off, iov[i].iov_len, iov[i].iov_base);
-		off += iov[i].iov_len;
-		if (olen + off != m->m_pkthdr.len) {
-			aprint_verbose_ifnet(ifp, "m_copyback failed\n");
-			m_freem(m);
-			return;
-		}
-	}
-	m->m_data += align;
-	m->m_pkthdr.len -= align;
-	m->m_len -= align;
 
 	eth = mtod(m, struct ether_header *);
 	if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
@@ -379,7 +418,6 @@ VIF_DELIVERPKT(struct virtif_sc *sc, struct iovec *iov, size_t iovlen)
 	} else {
 		m_freem(m);
 	}
-	m = NULL;
 }
 
 MODULE(MODULE_CLASS_DRIVER, if_virt, NULL);

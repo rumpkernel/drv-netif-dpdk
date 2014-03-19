@@ -163,43 +163,60 @@ globalinit(struct virtif_user *viu)
  	return rv;
 }
 
+void
+VIFHYPER_MBUF_FREECB(void *data, size_t dlen, void *arg)
+{
+
+	rte_pktmbuf_free_seg(arg);
+}
+
 /*
  * Get mbuf off of interface, push it up into the TCP/IP stack.
  * TODO: share TCP/IP stack mbufs with DPDK mbufs to avoid
  * data copy (in rump_virtif_pktdeliver()).
  */
-#define STACK_IOV 16
+#define STACK_MEXTDATA 16
 static void
 deliverframe(struct virtif_user *viu)
 {
-	struct rte_mbuf *m, *m0;
-	struct iovec iov[STACK_IOV];
-	struct iovec *iovp, *iovp0;
+	struct mbuf *m;
+	struct rte_mbuf *rm, *rm0;
+	struct vif_mextdata mext[STACK_MEXTDATA];
+	struct vif_mextdata *mextp, *mextp0 = NULL;
 
 	assert(viu->viu_nbufpkts > 0 && viu->viu_bufidx < MAX_PKT_BURST);
-	m0 = viu->viu_m_pkts[viu->viu_bufidx];
-	assert(m0 != NULL);
+	rm0 = viu->viu_m_pkts[viu->viu_bufidx];
+	assert(rm0 != NULL);
 	viu->viu_bufidx++;
 	viu->viu_nbufpkts--;
 
-	if (m0->pkt.nb_segs > STACK_IOV) {
-		iovp = malloc(sizeof(*iovp) * m0->pkt.nb_segs);
-		if (iovp == NULL)
-			return; /* drop */
+	if (rm0->pkt.nb_segs > STACK_MEXTDATA) {
+		mextp = malloc(sizeof(*mextp) * rm0->pkt.nb_segs);
+		if (mextp == NULL)
+			goto drop;
 	} else {
-		iovp = iov;
+		mextp = mext;
 	}
-	iovp0 = iovp;
+	mextp0 = mextp;
 
-	for (m = m0; m; m = m->pkt.next, iovp++) {
-		iovp->iov_base = rte_pktmbuf_mtod(m, void *);
-		iovp->iov_len = rte_pktmbuf_data_len(m);
+	for (rm = rm0; rm; rm = rm->pkt.next, mextp++) {
+		mextp->mext_data = rte_pktmbuf_mtod(rm, void *);
+		mextp->mext_dlen = rte_pktmbuf_data_len(rm);
+		mextp->mext_arg = rm;
 	}
-	VIF_DELIVERPKT(viu->viu_virtifsc, iovp0, iovp-iovp0);
+	if (VIF_MBUF_EXTALLOC(mextp0, mextp - mextp0, &m) != 0)
+		goto drop;
 
-	rte_pktmbuf_free(m0);
-	if (iovp0 != iov)
-		free(iovp0);
+	VIF_DELIVERMBUF(viu->viu_virtifsc, m);
+
+	if (mextp0 != mext)
+		free(mextp0);
+	return;
+
+ drop:
+	if (mextp0 != mext)
+		free(mextp0);
+	rte_pktmbuf_free(rm0);
 }
 
 static void *
@@ -297,29 +314,29 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 }
 
 /*
- * To send, we copy the data from the TCP/IP stack memory into DPDK
- * memory.  TODO: share TCP/IP stack mbufs with DPDK mbufs to avoid
- * data copy.
+ * Arrange for mbuf to be transmitted.
  */
 void
-VIFHYPER_SEND(struct virtif_user *viu,
-	struct iovec *iov, size_t iovlen)
+VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0, int pktlen, void *d, int dlen)
 {
-	struct rte_mbuf *m;
-	void *dptr;
-	unsigned i;
+	struct rte_mbuf *rm;
+	struct mbuf *m;
+	void *rmdptr;
 
-	m = rte_pktmbuf_alloc(mbpool);
-	for (i = 0; i < iovlen; i++) {
-		dptr = rte_pktmbuf_append(m, iov[i].iov_len);
-		if (dptr == NULL) {
+	rm = rte_pktmbuf_alloc(mbpool);
+	for (m = m0; m; ) {
+		rmdptr = rte_pktmbuf_append(rm, dlen);
+		if (rmdptr == NULL) {
 			/* log error somehow? */
-			rte_pktmbuf_free(m);
+			rte_pktmbuf_free(rm);
 			break;
 		}
-		memcpy(dptr, iov[i].iov_base, iov[i].iov_len);
+		memcpy(rmdptr, d, dlen); /* XXX */
+		VIF_MBUF_NEXT(m, &m, &d, &dlen);
 	}
-	rte_eth_tx_burst(IF_PORTID, 0, &m, 1);
+	VIF_MBUF_FREE(m0);
+	
+	rte_eth_tx_burst(IF_PORTID, 0, &rm, 1);
 }
 
 int
