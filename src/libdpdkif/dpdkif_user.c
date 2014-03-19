@@ -104,7 +104,7 @@ static const struct rte_eth_txconf txconf = {
 	.tx_rs_thresh = 1,
 };
 
-static struct rte_mempool *mbpool;
+static struct rte_mempool *mbpool_rx, *mbpool_tx;
 
 struct virtif_user {
 	char *viu_devstr;
@@ -140,13 +140,19 @@ globalinit(struct virtif_user *viu)
 	    /*UNCONST*/(void *)(uintptr_t)ealargs)) < 0)
 		OUT("eal init\n");
 
-	/* disable mempool cache due to DPDK bug, not thread safe */
-	if ((mbpool = rte_mempool_create("mbuf_pool", NMBUF, MBSIZE, 0/*MBCACHE*/,
+	if ((mbpool_tx = rte_mempool_create("mbuf_pool_tx", NMBUF, MBSIZE, 0/*MBCACHE*/,
 	    sizeof(struct rte_pktmbuf_pool_private),
 	    rte_pktmbuf_pool_init, NULL,
 	    rte_pktmbuf_init, NULL, 0, 0)) == NULL) {
 		rv = -EINVAL;
-		OUT("mbuf pool\n");
+		OUT("mbuf pool tx");
+	}
+	if ((mbpool_rx = rte_mempool_create("mbuf_pool_rx", NMBUF, MBSIZE, 0/*MBCACHE*/,
+	    sizeof(struct rte_pktmbuf_pool_private),
+	    rte_pktmbuf_pool_init, NULL,
+	    rte_pktmbuf_init, NULL, 0, 0)) == NULL) {
+		rv = -EINVAL;
+		OUT("mbuf pool tx");
 	}
 
 	if ((rv = PMD_INIT()) < 0)
@@ -284,7 +290,7 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 		OUT("configure device\n");
 
 	if ((rv = rte_eth_rx_queue_setup(IF_PORTID,
-	    0, NDESC, 0, &rxconf, mbpool)) <0)
+	    0, NDESC, 0, &rxconf, mbpool_rx)) <0)
 		OUT("rx queue setup\n");
 
 	if ((rv = rte_eth_tx_queue_setup(IF_PORTID, 0, NDESC, 0, &txconf)) < 0)
@@ -323,7 +329,7 @@ VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0, int pktlen, void *d,
 	struct mbuf *m;
 	void *rmdptr;
 
-	rm = rte_pktmbuf_alloc(mbpool);
+	rm = rte_pktmbuf_alloc(mbpool_tx);
 	for (m = m0; m; ) {
 		rmdptr = rte_pktmbuf_append(rm, dlen);
 		if (rmdptr == NULL) {
