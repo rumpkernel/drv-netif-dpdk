@@ -321,6 +321,9 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 
 /*
  * Arrange for mbuf to be transmitted.
+ *
+ * TODO: use bulk transfers.  This should not be too difficult and will
+ * have a big performance impact.
  */
 void
 VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0, int pktlen, void *d, int dlen)
