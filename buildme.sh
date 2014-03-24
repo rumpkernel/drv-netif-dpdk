@@ -16,7 +16,7 @@ RUMPTOOLS=$(pwd)/rumptools
 RUMPMAKE=${RUMPTOOLS}/rumpmake
 RUMPDEST=$(pwd)/rump
 
-( cd buildrump.sh && ./buildrump.sh -T ${RUMPTOOLS} -d ${RUMPDEST} \
+( cd buildrump.sh && ./buildrump.sh -T ${RUMPTOOLS} -d ${RUMPDEST} -q \
     checkout fullbuild ) || die buildrump.sh failed
 echo bar
 ( cd dpdk ; make T=$(uname -m)-default-linuxapp-gcc config && make ) \
