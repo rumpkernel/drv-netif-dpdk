@@ -6,6 +6,7 @@ before_install:
  - git submodule update --init
 
 script:
+ - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r)
  - make
 
 notifications:
