@@ -18,11 +18,11 @@ RUMPDEST=$(pwd)/rump
 
 ( cd buildrump.sh && ./buildrump.sh -T ${RUMPTOOLS} -d ${RUMPDEST} -q \
     checkout fullbuild ) || die buildrump.sh failed
-echo bar
 ( cd dpdk ; make T=$(uname -m)-default-linuxapp-gcc config && make ) \
     || die dpdk build failed
-echo foo
 ( cd src && ${RUMPMAKE} dependall && ${RUMPMAKE} install ) \
     || dpdkif build failed
+( cd examples && ${RUMPMAKE} dependall && ${RUMPMAKE} install ) \
+    || examples build failed
 
 touch .build_done

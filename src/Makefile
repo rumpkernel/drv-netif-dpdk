@@ -1,3 +1,3 @@
-SUBDIR= libdpdkif .WAIT examples
+SUBDIR= libdpdkif
 
 .include <bsd.subdir.mk>
