@@ -34,18 +34,18 @@ documents some ideas for potential performance optimizations.
 Instructions
 ------------
 
-The procedure is follows:
+The simple version is as follows:
 
-* `git submodule update --init`
-* `./buildrump.sh/buildrump.sh -s rumpsrc -T rumptools`
-* in `src/libdpdkif` of this repo, edit the parameters at the top of
-  `rumpcomp_user.c`, e.g. the interface port to be used.
-* still in `src/libdpdkif`, run: `../../rumptools/rumpmake dependall &&
-  ../../rumptools/rumpmake install`.  Note that you need `RTE_SDK`
-  and `RTE_TARGET` set in the normal DPDK manner (consult DPDK docs).
+* run `git submodule update --init --recursive`
+* edit `src/libdpdkif/configuration.h`
+* run `make`
 
-You can now link and use the DPDK interface driver (`librumpnet_dpdkif`)
-into applications.
+To test, try running `rump/bin/webbrowser`.
+
+By default, the build will use the DPDK submodule in this repository.
+You can also choose another DPDK installation, just set `$RTE_SDK` and
+`$RTE_TARGET` differently.  You can now link and use the DPDK interface
+driver (`librumpnet_dpdkif`, `-lrumpnet_dpdkif`) into applications.
 
 Using the revision of DPDK included as a submodule is highly recommended.
 It is possible to use another version of DPDK, but in that case be
