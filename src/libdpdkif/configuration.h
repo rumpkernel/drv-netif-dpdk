@@ -2,7 +2,10 @@
  * Configurables.  Adjust these to be appropriate for your system.
  */
 
-/* change blacklist parameters (-b) if necessary */
+/* change blacklist parameters (-b) if necessary
+ * If you have more than one interface, you will likely want to blacklist
+ * at least one of them.
+ */
 static const char *ealargs[] = {
 	"if_dpdk",
 	"-b 00:00:03.0",
