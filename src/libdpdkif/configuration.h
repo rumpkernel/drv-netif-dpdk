@@ -8,7 +8,9 @@
  */
 static const char *ealargs[] = {
 	"if_dpdk",
+#if 0
 	"-b 00:00:03.0",
+#endif
 	"-c 1",
 	"-n 1",
 };
