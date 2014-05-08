@@ -1,6 +1,6 @@
 [submodule "buildrump.sh"]
 	path = buildrump.sh
-	url = https://github.com/anttikantee/buildrump.sh
+	url = https://github.com/rumpkernel/buildrump.sh
 [submodule "dpdk"]
 	path = dpdk
 	url = git://dpdk.org/dpdk
