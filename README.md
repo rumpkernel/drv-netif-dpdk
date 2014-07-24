@@ -17,7 +17,3 @@ list at rumpkernel-users@lists.sourceforge.net
 (you can [subscribe here](https://lists.sourceforge.net/lists/listinfo/rumpkernel-users)).  Please do not send private email to the authors.
 You can also ask simple questions on irc: __#rumpkernel__
 on __irc.freenode.net__.
-
-If you need commercial support e.g. for development or integration,
-or want to pay for private email support, contact
-[Fixup Software Ltd.](http://www.fixup.fi/).
