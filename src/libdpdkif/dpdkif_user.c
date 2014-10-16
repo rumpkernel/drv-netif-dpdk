@@ -168,8 +168,8 @@ deliverframe(struct virtif_user *viu)
 	viu->viu_bufidx++;
 	viu->viu_nbufpkts--;
 
-	if (rm0->pkt.nb_segs > STACK_MEXTDATA) {
-		mextp = malloc(sizeof(*mextp) * rm0->pkt.nb_segs);
+	if (rm0->nb_segs > STACK_MEXTDATA) {
+		mextp = malloc(sizeof(*mextp) * rm0->nb_segs);
 		if (mextp == NULL)
 			goto drop;
 	} else {
@@ -177,7 +177,7 @@ deliverframe(struct virtif_user *viu)
 	}
 	mextp0 = mextp;
 
-	for (rm = rm0; rm; rm = rm->pkt.next, mextp++) {
+	for (rm = rm0; rm; rm = rm->next, mextp++) {
 		mextp->mext_data = rte_pktmbuf_mtod(rm, void *);
 		mextp->mext_dlen = rte_pktmbuf_data_len(rm);
 		mextp->mext_arg = rm;
