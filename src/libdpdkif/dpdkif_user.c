@@ -134,10 +134,6 @@ globalinit(struct virtif_user *viu)
 		OUT("mbuf pool tx");
 	}
 
-	if ((rv = PMD_INIT()) < 0)
-		OUT("pmd init");
-	if ((rv = rte_eal_pci_probe()) < 0)
-		OUT("PCI probe");
 	if (rte_eth_dev_count() == 0) {
 		rv = -1;
 		OUT("no ports");

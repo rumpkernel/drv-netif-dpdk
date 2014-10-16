@@ -19,7 +19,7 @@ RUMPDEST=$(pwd)/rump
 set -e
 ( cd buildrump.sh && ./buildrump.sh -T ${RUMPTOOLS} -d ${RUMPDEST} -q \
     checkout fullbuild || die buildrump.sh failed )
-( cd dpdk ; make T=$(uname -m)-default-linuxapp-gcc config && make \
+( cd dpdk ; make T=$(uname -m)-native-linuxapp-gcc config && make \
     || die dpdk build failed )
 ( cd src && ${RUMPMAKE} dependall && ${RUMPMAKE} install \
     || dpdkif build failed )

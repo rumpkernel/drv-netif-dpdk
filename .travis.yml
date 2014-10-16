@@ -7,6 +7,7 @@ before_install:
 
 script:
  - sudo ln -sf $(ls /lib/modules | sed 1q) /lib/modules/$(uname -r)
+ - .travis/dpdk_disablekni.sh
  - make
 
 notifications:
