@@ -81,7 +81,7 @@ main()
 		if (nn<0) {
 			perror("Error receiving data");
 		} else {
-			rump_sys_sendto(s,buf,nn,0,(struct sockaddr *)&client,clen);
+			rump_sys_sendto(s, msg, nn, 0, (struct sockaddr *)&client,clen);
 		}
 	}
 }
