@@ -22,8 +22,8 @@ set -e
 ( cd dpdk ; make T=$(uname -m)-native-linuxapp-gcc config && make \
     || die dpdk build failed )
 ( cd src && ${RUMPMAKE} dependall && ${RUMPMAKE} install \
-    || dpdkif build failed )
+    || die dpdkif build failed )
 ( cd examples && ${RUMPMAKE} dependall && ${RUMPMAKE} install \
-    || examples build failed )
+    || die examples build failed )
 
 touch .build_done
