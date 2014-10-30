@@ -20,7 +20,12 @@
 #include <netinet/in.h>
 #include <sched.h>
 
+
+/* Enable to use a static IP address. */
+#if 0
 #define IF_ADDR "10.0.0.2"
+#endif
+
 #define ECHOSERVER_RX_PORT 1111
 
 #define IFNAME "dpdk0"
@@ -44,12 +49,14 @@ main()
 	if (rump_pub_netconfig_ifcreate(IFNAME) != 0)
 		errx(1, "failed to create " IFNAME);
 
+#ifdef IF_ADDR
 	if (rump_pub_netconfig_ipv4_ifaddr(IFNAME,
 	    IF_ADDR, "255.255.255.0") != 0)
 		errx(1, "failed to create " IFNAME);
-
-	//rump_pub_netconfig_dhcp_ipv4_oneshot(IFNAME);
-
+#else
+	if (rump_pub_netconfig_dhcp_ipv4_oneshot(IFNAME) != 0)
+		errx(1, "dhcp address");
+#endif
 
 	s = rump_sys_socket(PF_INET, SOCK_DGRAM, 0);
 	if (s == -1)
@@ -58,7 +65,7 @@ main()
 	memset(&server, 0, sizeof(server));
 	server.sin_family = AF_INET;
 	server.sin_port = htons(ECHOSERVER_RX_PORT);  
-	server.sin_addr.s_addr = inet_addr(IF_ADDR);
+	server.sin_addr.s_addr = INADDR_ANY;
 
 	rump_sys_setsockopt(s, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 
