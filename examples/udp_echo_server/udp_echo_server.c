@@ -43,7 +43,6 @@ main()
 	int size = 1024 * 1024;
 	int s;
 
-
 	rump_init();
 	rump_pub_lwproc_rfork(0);
 	if (rump_pub_netconfig_ifcreate(IFNAME) != 0)
@@ -51,7 +50,7 @@ main()
 
 #ifdef IF_ADDR
 	if (rump_pub_netconfig_ipv4_ifaddr(IFNAME,
-	    IF_ADDR, "255.255.255.0") != 0)
+					   IF_ADDR, "255.255.255.0") != 0)
 		errx(1, "failed to create " IFNAME);
 #else
 	if (rump_pub_netconfig_dhcp_ipv4_oneshot(IFNAME) != 0)
@@ -64,7 +63,7 @@ main()
 
 	memset(&server, 0, sizeof(server));
 	server.sin_family = AF_INET;
-	server.sin_port = htons(ECHOSERVER_RX_PORT);  
+	server.sin_port = htons(ECHOSERVER_RX_PORT);
 	server.sin_addr.s_addr = INADDR_ANY;
 
 	rump_sys_setsockopt(s, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
@@ -73,22 +72,21 @@ main()
 		err(1, "binded");
 	printf("socket binded\r\n");
 
-	printf("Waiting connection on port = %d\r\n",ECHOSERVER_RX_PORT);
+	printf("Waiting connection on port = %d\r\n", ECHOSERVER_RX_PORT);
 
 	memset(&client, 0, sizeof(client));
 
 	while(1)
 	{
-		memset(msg,0,sizeof(msg));
+		memset(msg, 0, sizeof(msg));
 		clen = sizeof(client);
 
-		nn = rump_sys_recvfrom(s,msg,sizeof(msg),0,(struct sockaddr *)&client,&clen);
+		nn = rump_sys_recvfrom(s, msg, sizeof(msg), 0, (struct sockaddr *)&client, &clen);
 
-
-		if (nn<0) {
+		if (nn < 0) {
 			perror("Error receiving data");
 		} else {
-			rump_sys_sendto(s, msg, nn, 0, (struct sockaddr *)&client,clen);
+			rump_sys_sendto(s, msg, nn, 0, (struct sockaddr *)&client, clen);
 		}
 	}
 }
