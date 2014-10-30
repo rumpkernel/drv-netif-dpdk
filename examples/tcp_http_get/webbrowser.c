@@ -20,6 +20,7 @@
 
 #include <netinet/in.h>
 
+#define IFNAME "dpdk0"
 #define DESTHOST "www.netbsd.org"
 
 static void __attribute__((__noreturn__))
@@ -48,9 +49,9 @@ main()
 
 	rump_init();
 
-	if ((e = rump_pub_netconfig_ifcreate("dpdk0")) != 0)
-		die(e, "create dpdk0");
-	if ((e = rump_pub_netconfig_dhcp_ipv4_oneshot("dpdk0")) != 0)
+	if ((e = rump_pub_netconfig_ifcreate(IFNAME)) != 0)
+		die(e, "create " IFNAME);
+	if ((e = rump_pub_netconfig_dhcp_ipv4_oneshot(IFNAME)) != 0)
 		die(e, "dhcp address");
 
 	s = rump_sys_socket(PF_INET, SOCK_STREAM, 0);
