@@ -62,8 +62,11 @@
 
 #define MBSIZE	2048
 #define MBCACHE	32
-#define NMBUF	512
-#define NDESC	256
+#define NDESCTX 512
+#define NDESCRX 256
+#define NMBUF_BURST_SURPLUS 512
+#define NMBUF_TX (NDESCTX + NMBUF_BURST_SURPLUS)
+#define NMBUF_RX (NDESCRX + NMBUF_BURST_SURPLUS)
 #define NQUEUE	1
 
 /* these thresholds don't matter at this stage of optimizing */
@@ -81,6 +84,7 @@ static const struct rte_eth_txconf txconf = {
 		.wthresh = 1,
 	},
 	.tx_rs_thresh = 1,
+	.txq_flags = ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOOFFLOADS,
 };
 
 static struct rte_mempool *mbpool_rx, *mbpool_tx;
@@ -119,14 +123,14 @@ globalinit(struct virtif_user *viu)
 	    /*UNCONST*/(void *)(uintptr_t)ealargs)) < 0)
 		OUT("eal init");
 
-	if ((mbpool_tx = rte_mempool_create("mbuf_pool_tx", NMBUF, MBSIZE, 0/*MBCACHE*/,
+	if ((mbpool_tx = rte_mempool_create("mbuf_pool_tx", NMBUF_TX, MBSIZE, 0/*MBCACHE*/,
 	    sizeof(struct rte_pktmbuf_pool_private),
 	    rte_pktmbuf_pool_init, NULL,
 	    rte_pktmbuf_init, NULL, 0, 0)) == NULL) {
 		rv = -EINVAL;
 		OUT("mbuf pool tx");
 	}
-	if ((mbpool_rx = rte_mempool_create("mbuf_pool_rx", NMBUF, MBSIZE, 0/*MBCACHE*/,
+	if ((mbpool_rx = rte_mempool_create("mbuf_pool_rx", NMBUF_RX, MBSIZE, 0/*MBCACHE*/,
 	    sizeof(struct rte_pktmbuf_pool_private),
 	    rte_pktmbuf_pool_init, NULL,
 	    rte_pktmbuf_init, NULL, 0, 0)) == NULL) {
@@ -265,10 +269,10 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 		OUT("configure device");
 
 	if ((rv = rte_eth_rx_queue_setup(IF_PORTID,
-	    0, NDESC, 0, &rxconf, mbpool_rx)) <0)
+	    0, NDESCRX, 0, &rxconf, mbpool_rx)) <0)
 		OUT("rx queue setup");
 
-	if ((rv = rte_eth_tx_queue_setup(IF_PORTID, 0, NDESC, 0, &txconf)) < 0)
+	if ((rv = rte_eth_tx_queue_setup(IF_PORTID, 0, NDESCTX, 0, &txconf)) < 0)
 		OUT("tx queue setup");
 
 	if ((rv = rte_eth_dev_start(IF_PORTID)) < 0)
