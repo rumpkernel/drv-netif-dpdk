@@ -1,0 +1,10 @@
+*.o
+*.so
+*.so.*
+*.d
+*.pico
+*.a
+.gdbinit
+.depend
+.build_done
+
