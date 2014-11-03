@@ -15,8 +15,5 @@ static const char *ealargs[] = {
 	"-n 1",
 };
 
-/* change PORTID to the one your want to use */
-#define IF_PORTID 0
-
 /* Receive packets in bursts of 16 per read */
 #define MAX_PKT_BURST 16

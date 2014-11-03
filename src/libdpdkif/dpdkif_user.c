@@ -95,6 +95,7 @@ static struct rte_mempool *mbpool_rx, *mbpool_tx;
 
 struct virtif_user {
 	char *viu_devstr;
+	uint8_t viu_port_id;
 	int viu_dying;
 	struct virtif_sc *viu_virtifsc;
 	pthread_t viu_rcvpt;
@@ -233,7 +234,7 @@ receiver(void *arg)
 		
 		/* none cached.  ok, try to get some */
 		if (viu->viu_nbufpkts == 0) {
-			viu->viu_nbufpkts = rte_eth_rx_burst(IF_PORTID,
+			viu->viu_nbufpkts = rte_eth_rx_burst(viu->viu_port_id,
 			    0, viu->viu_m_pkts, MAX_PKT_BURST);
 			viu->viu_bufidx = 0;
 		}
@@ -260,6 +261,8 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 	struct rte_eth_link link;
 	struct ether_addr ea;
 	struct virtif_user *viu;
+	unsigned long tmp;
+	char *ep;
 	int rv = EINVAL; /* XXX: not very accurate ;) */
 
 	viu = malloc(sizeof(*viu));
@@ -267,29 +270,37 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 	viu->viu_devstr = strdup(devstr);
 	viu->viu_virtifsc = vif_sc;
 
+	tmp = strtoul(devstr, &ep, 10);
+	if (*ep != '\0')
+		OUT("invalid dev string");
+
+	if (tmp > 255)
+		OUT("DPDK port id out of range");
+
+	viu->viu_port_id = tmp;
 
 	memset(&portconf, 0, sizeof(portconf));
-	if ((rv = rte_eth_dev_configure(IF_PORTID,
+	if ((rv = rte_eth_dev_configure(viu->viu_port_id,
 	    NQUEUE, NQUEUE, &portconf)) < 0)
 		OUT("configure device");
 
-	if ((rv = rte_eth_rx_queue_setup(IF_PORTID,
+	if ((rv = rte_eth_rx_queue_setup(viu->viu_port_id,
 	    0, NDESCRX, 0, &rxconf, mbpool_rx)) <0)
 		OUT("rx queue setup");
 
-	if ((rv = rte_eth_tx_queue_setup(IF_PORTID, 0, NDESCTX, 0, &txconf)) < 0)
+	if ((rv = rte_eth_tx_queue_setup(viu->viu_port_id, 0, NDESCTX, 0, &txconf)) < 0)
 		OUT("tx queue setup");
 
-	if ((rv = rte_eth_dev_start(IF_PORTID)) < 0)
+	if ((rv = rte_eth_dev_start(viu->viu_port_id)) < 0)
 		OUT("device start");
 
-	rte_eth_link_get(IF_PORTID, &link);
+	rte_eth_link_get(viu->viu_port_id, &link);
 	if (!link.link_status) {
 		ifwarn(viu, "link down");
 	}
 
-	rte_eth_promiscuous_enable(IF_PORTID);
-	rte_eth_macaddr_get(IF_PORTID, &ea);
+	rte_eth_promiscuous_enable(viu->viu_port_id);
+	rte_eth_macaddr_get(viu->viu_port_id, &ea);
 	memcpy(enaddr, ea.addr_bytes, ETHER_ADDR_LEN);
 
 	rv = pthread_create(&viu->viu_rcvpt, NULL, receiver, viu);
@@ -336,7 +347,7 @@ VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0,
 	}
 	VIF_MBUF_FREE(m0);
 	
-	rte_eth_tx_burst(IF_PORTID, 0, &rm, 1);
+	rte_eth_tx_burst(viu->viu_port_id, 0, &rm, 1);
 }
 
 int
