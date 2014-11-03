@@ -113,9 +113,10 @@ ifwarn(struct virtif_user *viu, const char *fmt, ...)
 	va_end(ap);
 }
 
-#define OUT(a) do { ifwarn(viu, a) ; goto out; } while (/*CONSTCOND*/0)
-static int
-globalinit(struct virtif_user *viu)
+#define OUT(a) do { fprintf(stderr, a); fprintf(stderr, "\n"); goto out; } while (/*CONSTCOND*/0)
+
+int
+VIFHYPER_INIT(void)
 {
 	int rv;
 
@@ -147,6 +148,9 @@ globalinit(struct virtif_user *viu)
  out:
  	return rv;
 }
+#undef OUT
+
+#define OUT(a) do { ifwarn(viu, a) ; goto out; } while (/*CONSTCOND*/0)
 
 void
 VIFHYPER_MBUF_FREECB(void *data, size_t dlen, void *arg)
@@ -259,9 +263,6 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 	viu->viu_devstr = strdup(devstr);
 	viu->viu_virtifsc = vif_sc;
 
-	/* this is here only for simplicity */
-	if ((rv = globalinit(viu)) != 0)
-		goto out;
 
 	memset(&portconf, 0, sizeof(portconf));
 	if ((rv = rte_eth_dev_configure(IF_PORTID,

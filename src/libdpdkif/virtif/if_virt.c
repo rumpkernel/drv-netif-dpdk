@@ -429,6 +429,9 @@ if_virt_modcmd(modcmd_t cmd, void *opaque)
 
 	switch (cmd) {
 	case MODULE_CMD_INIT:
+		if ((error = VIFHYPER_INIT()) != 0)
+			return error;
+
 		if_clone_attach(&VIF_CLONER);
 		break;
 	case MODULE_CMD_FINI:

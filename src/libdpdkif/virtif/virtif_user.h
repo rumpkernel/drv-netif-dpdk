@@ -36,6 +36,7 @@ struct vif_mextdata {
 
 #define VIFHYPER_REVISION 20140318
 
+int 	VIFHYPER_INIT(void);
 int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *,
 			struct virtif_user **);
 int	VIFHYPER_DYING(struct virtif_user *);
