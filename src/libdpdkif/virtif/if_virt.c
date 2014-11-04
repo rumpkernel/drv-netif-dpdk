@@ -76,6 +76,7 @@ virtif_create(struct ifnet *ifp)
 	uint8_t enaddr[ETHER_ADDR_LEN] = { 0xb2, 0x0a, 0x00, 0x0b, 0x0e, 0x01 };
 	char enaddrstr[3*ETHER_ADDR_LEN];
 	struct virtif_sc *sc = ifp->if_softc;
+	int ifcaps, ethercaps;
 	int error;
 
 	if (sc->sc_viu)
@@ -89,6 +90,17 @@ virtif_create(struct ifnet *ifp)
 		printf("VIFHYPER_CREATE failed: %d\n", error);
 		return error;
 	}
+
+	ifcaps = ethercaps = 0;
+	VIFHYPER_GETCAPS(sc->sc_viu, &ifcaps, &ethercaps);
+	if (ifcaps & ~IFCAP_MASK)
+		panic("virtif: invalid ifcaps: 0x%x\n", ifcaps);
+#ifdef notyet
+	if (ethercaps & ~ETHERCAP_MASK)
+		panic("virtif: invalid ethercaps: 0x%x\n", ethercaps);
+#endif
+	ifp->if_capabilities = ifcaps;
+	sc->sc_ec.ec_capabilities = ethercaps;
 
 	ether_ifattach(ifp, enaddr);
 	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
@@ -290,8 +302,9 @@ virtif_start(struct ifnet *ifp)
 		}
 		bpf_mtap(ifp, m);
 
-		VIFHYPER_SENDMBUF(sc->sc_viu,
-		    m, m->m_pkthdr.len, m->m_data, m->m_len);
+		VIFHYPER_SENDMBUF(sc->sc_viu, m, m->m_pkthdr.len,
+		    m->m_pkthdr.csum_flags, m->m_pkthdr.csum_data,
+		    m->m_data, m->m_len);
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 }
@@ -381,43 +394,52 @@ VIF_MBUF_EXTALLOC(struct vif_mextdata *mextd, size_t n_mextdata,
 		m0 = NULL;
 	} else {
 		m0->m_pkthdr.len = totlen;
+
+		/* previous link on chain? */
+		if (*mp)
+			(*mp)->m_nextpkt = m0;
+		*mp = m0;
 	}
-	*mp = m0;
+
 	return error;
 }
 
 void
-VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m)
+VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m0)
 {
 	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	struct ether_header *eth;
+	struct mbuf *m, *n;
 	bool passup;
 
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
 
-	eth = mtod(m, struct ether_header *);
-	if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
-	    ETHER_ADDR_LEN) == 0) {
-		passup = true;
-	} else if (ETHER_IS_MULTICAST(eth->ether_dhost)) {
-		passup = true;
-	} else if (ifp->if_flags & IFF_PROMISC) {
-		m->m_flags |= M_PROMISC;
-		passup = true;
-	} else {
-		passup = false;
-	}
+	KERNEL_LOCK(1, NULL);
+	for (m = m0; m; m = n) {
+		eth = mtod(m, struct ether_header *);
+		if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
+		    ETHER_ADDR_LEN) == 0) {
+			passup = true;
+		} else if (ETHER_IS_MULTICAST(eth->ether_dhost)) {
+			passup = true;
+		} else if (ifp->if_flags & IFF_PROMISC) {
+			m->m_flags |= M_PROMISC;
+			passup = true;
+		} else {
+			passup = false;
+		}
 
-	if (passup) {
-		m->m_pkthdr.rcvif = ifp;
-		KERNEL_LOCK(1, NULL);
-		bpf_mtap(ifp, m);
-		ifp->if_input(ifp, m);
-		KERNEL_UNLOCK_LAST(NULL);
-	} else {
-		m_freem(m);
+		n = m->m_nextpkt;
+		if (passup) {
+			m->m_pkthdr.rcvif = ifp;
+			bpf_mtap(ifp, m);
+			ifp->if_input(ifp, m);
+		} else {
+			m_freem(m);
+		}
 	}
+	KERNEL_UNLOCK_LAST(NULL);
 }
 
 MODULE(MODULE_CLASS_DRIVER, if_virt, NULL);

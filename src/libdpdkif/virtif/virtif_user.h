@@ -39,11 +39,12 @@ struct vif_mextdata {
 int 	VIFHYPER_INIT(void);
 int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *,
 			struct virtif_user **);
+void	VIFHYPER_GETCAPS(struct virtif_user *, int *, int *);
 int	VIFHYPER_DYING(struct virtif_user *);
 void	VIFHYPER_DESTROY(struct virtif_user *);
 
-void	VIFHYPER_SENDMBUF(struct virtif_user *,
-			  struct mbuf *, int, void *, int);
+void	VIFHYPER_SENDMBUF(struct virtif_user *, struct mbuf *,
+			  int, int, uint32_t, void *, int);
 
 void	VIFHYPER_MBUF_FREECB(void *, size_t, void *);
 
