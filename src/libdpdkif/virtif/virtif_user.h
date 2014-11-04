@@ -34,7 +34,7 @@ struct vif_mextdata {
 	void	*mext_arg;
 };
 
-#define VIFHYPER_REVISION 20140318
+#define VIFHYPER_REVISION 20141104
 
 int 	VIFHYPER_INIT(void);
 int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *,
