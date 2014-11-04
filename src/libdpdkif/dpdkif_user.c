@@ -172,7 +172,7 @@ VIFHYPER_MBUF_FREECB(void *data, size_t dlen, void *arg)
 static void
 deliverframe(struct virtif_user *viu)
 {
-	struct mbuf *m;
+	struct mbuf *m = NULL;
 	struct rte_mbuf *rm, *rm0;
 	struct vif_mextdata mext[STACK_MEXTDATA];
 	struct vif_mextdata *mextp, *mextp0 = NULL;
@@ -303,6 +303,12 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 	return rumpuser_component_errtrans(-rv);
 }
 
+void
+VIFHYPER_GETCAPS(struct virtif_user *viu, int *ifcaps, int *ethercaps)
+{
+	/* TODO: Figure out what caps we're going to advertise. */
+}
+
 /*
  * Arrange for mbuf to be transmitted.
  *
@@ -310,7 +316,8 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
  * have a big performance impact.
  */
 void
-VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0, int pktlen, void *d, int dlen)
+VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0,
+	int pktlen, int csum_flags, uint32_t csum_data, void *d, int dlen)
 {
 	struct rte_mbuf *rm;
 	struct mbuf *m;
