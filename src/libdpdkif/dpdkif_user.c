@@ -54,6 +54,10 @@
 #include "if_virt.h"
 #include "virtif_user.h"
 
+#if VIFHYPER_REVISION != 20141104
+#error VIFHYPER_REVISION mismatch
+#endif
+
 #include "configuration.h"
 
 /*
