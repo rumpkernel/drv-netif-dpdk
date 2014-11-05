@@ -2,3 +2,4 @@ amd64
 i386
 machine
 x86
+virtif_macros.h
