@@ -279,6 +279,12 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 
 	viu->viu_port_id = tmp;
 
+	if (viu->viu_port_id >= rte_eth_dev_count())
+	{
+		rv = -ENODEV;
+		OUT("DPDK port not initialized");
+	}
+
 	memset(&portconf, 0, sizeof(portconf));
 	if ((rv = rte_eth_dev_configure(viu->viu_port_id,
 	    NQUEUE, NQUEUE, &portconf)) < 0)
