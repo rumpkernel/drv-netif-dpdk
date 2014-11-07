@@ -442,10 +442,16 @@ VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m0)
 	KERNEL_UNLOCK_LAST(NULL);
 }
 
-MODULE(MODULE_CLASS_DRIVER, if_virt, NULL);
-
+/*
+ * The following ensures that no two modules using if_virt end up with
+ * the same module name.  MODULE() and modcmd wrapped in ... bad mojo.
+ */
+#define VIF_MOJO(x) MODULE(MODULE_CLASS_DRIVER,x,NULL);
+#define VIF_MODULE() VIF_MOJO(VIF_BASENAME(if_virt_,VIRTIF_BASE))
+#define VIF_MODCMD VIF_BASENAME3(if_virt_,VIRTIF_BASE,_modcmd)
+VIF_MODULE();
 static int
-if_virt_modcmd(modcmd_t cmd, void *opaque)
+VIF_MODCMD(modcmd_t cmd, void *opaque)
 {
 	int error = 0;
 
