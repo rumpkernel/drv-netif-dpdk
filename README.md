@@ -5,7 +5,7 @@ dpdk-rumptcpip uses a [rump kernel](http://rumpkernel.org) to provide a
 userspace TCP/IP stack for use with the Intel Data Plane Development Kit
 [DPDK](http://dpdk.org/).
 
-See [the wiki page](http://wiki.rumpkernel.org/Repo:-dpdk-rumptcpip) for more
+See [the wiki page](http://wiki.rumpkernel.org/Repo:-drv-netif-dpdk) for more
 information and instructions.
 
 
