@@ -1,8 +1,8 @@
 TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/rumpkernel/drv-netif-dpdk.png?branch=master)](https://travis-ci.org/rumpkernel/drv-netif-dpdk)
 =====================
 
-drv-netif-dpdk a [DPDK](http://dpdk.org) network interface for a [rump
-kernel](http://rumpkernel.org).  The combined result is a TCP/IP stack
+drv-netif-dpdk is a [DPDK](http://dpdk.org) network interface for [rump
+kernels](http://rumpkernel.org).  The combined result is a TCP/IP stack
 doing packet I/O via DPDK.
 
 See [the wiki page](http://wiki.rumpkernel.org/Repo:-drv-netif-dpdk) for more
