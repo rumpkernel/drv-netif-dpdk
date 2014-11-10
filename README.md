@@ -1,9 +1,9 @@
-TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/rumpkernel/dpdk-rumptcpip.png?branch=master)](https://travis-ci.org/rumpkernel/dpdk-rumptcpip)
+TCP/IP stack for DPDK [![Build Status](https://travis-ci.org/rumpkernel/drv-netif-dpdk.png?branch=master)](https://travis-ci.org/rumpkernel/drv-netif-dpdk)
 =====================
 
-dpdk-rumptcpip uses a [rump kernel](http://rumpkernel.org) to provide a
-userspace TCP/IP stack for use with the Intel Data Plane Development Kit
-[DPDK](http://dpdk.org/).
+drv-netif-dpdk a [DPDK](http://dpdk.org) network interface for a [rump
+kernel](http://rumpkernel.org).  The combined result is a TCP/IP stack
+doing packet I/O via DPDK.
 
 See [the wiki page](http://wiki.rumpkernel.org/Repo:-drv-netif-dpdk) for more
 information and instructions.
