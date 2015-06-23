@@ -13,7 +13,7 @@ Support
 -------
 
 For free support, use the rump kernel mailing
-list at rumpkernel-users@lists.sourceforge.net
-(you can [subscribe here](https://lists.sourceforge.net/lists/listinfo/rumpkernel-users)).  Please do not send private email to the authors.
+list at rumpkernel-users@freelists.org
+(you can [subscribe here](https://www.freelists.org/list/rumpkernel-users)).  Please do not send private email to the authors.
 You can also ask simple questions on irc: __#rumpkernel__
 on __irc.freenode.net__.
