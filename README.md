@@ -8,12 +8,7 @@ TCP/IP stack doing packet I/O via DPDK.
 See [the wiki page](http://wiki.rumpkernel.org/Repo:-drv-netif-dpdk) for more
 information and instructions.
 
-
-Support
--------
-
-For free support, use the rump kernel mailing
-list at rumpkernel-users@freelists.org
-(you can [subscribe here](https://www.freelists.org/list/rumpkernel-users)).  Please do not send private email to the authors.
-You can also ask simple questions on irc: __#rumpkernel__
-on __irc.freenode.net__.
+Note: you need expert level knowledge for using the DPDK driver and
+especially for tuning it to achieve high performance.  It is unlikely
+that you will find anyone in the rump kernel open source community
+willing to do that consulting for free.
